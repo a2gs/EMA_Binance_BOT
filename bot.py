@@ -8,7 +8,6 @@
 import os
 import sys
 import atexit
-import time
 
 from binance.client import Client
 from binance.exceptions import BinanceAPIException, BinanceWithdrawException, BinanceRequestException
