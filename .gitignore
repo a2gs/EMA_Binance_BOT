@@ -1,0 +1,4 @@
+# .gitignore
+venv
+botEnv.sh
+*.text
