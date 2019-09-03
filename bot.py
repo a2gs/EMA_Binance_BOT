@@ -101,6 +101,9 @@ def main(argv):
 	cfg.set('cmd_pipe_file_path', f"{argv[2]}_pipecmd")
 	cfg.set('log_file', f"{argv[2]}_log.text")
 	cfg.set('binance_pair', argv[3])
+	cfg.set('fast_ema', argv[4])
+	cfg.set('slow_ema', argv[5])
+	cfg.set('time_sample', argv[6])
 
 	daemonize()
 
@@ -117,6 +120,8 @@ def main(argv):
 	logFile.write(f"\tCMD pipe = [{cfg.get('cmd_pipe_file_path')}]\n")
 	logFile.write(f"\tWorking path = [{cfg.get('work_path')}]\n")
 	logFile.write(f"\tBinance pair = [{cfg.get('binance_pair')}]\n")
+	logFile.write(f"\tEMA Slow/Fast = [{cfg.get('slow.ema')} / {cfg.get('fast_ema')}]\n")
+	logFile.write(f"\tTime sample = [{cfg.get('time_sample')}]\n")
 	logFile.write(f"\tBinance API key = [{cfg.get('binance_apikey')}]\n\n")
 
 	try:
@@ -145,8 +150,8 @@ def main(argv):
 
 if __name__ == '__main__':
 
-	if len(sys.argv) != 4:
-		print(f"Usage:\n\t{sys.argv[0]} <BOT_ID> <WORK_PATH> <BINANCE_PAIR>\nSample:\n\t{sys.argv[0]} ./ BOT1 BNBBTC\n")
+	if len(sys.argv) != 7:
+		print(f"Usage:\n\t{sys.argv[0]} <BOT_ID> <WORK_PATH> <BINANCE_PAIR> <FAST_EMA> <SLOW_EMA> <TIME_SAMPLE>\nSample:\n\t{sys.argv[0]} ./ BOT1 BNBBTC\n")
 		sys.exit(1)
 
 	else:
