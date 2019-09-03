@@ -14,7 +14,7 @@ import errno
 from binance.client import Client
 from binance.exceptions import BinanceAPIException, BinanceWithdrawException, BinanceRequestException
 
-# this variables will be cleared over course of time..
+# these variables will be cleared over course of time..
 PID_NUM            = 0
 PID_FILE_PATH      = ''
 CMD_PIPE_FILE      = ''
