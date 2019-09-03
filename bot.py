@@ -14,6 +14,7 @@ import errno
 from binance.client import Client
 from binance.exceptions import BinanceAPIException, BinanceWithdrawException, BinanceRequestException
 
+# this variables will be cleared over course of time..
 PID_NUM            = 0
 PID_FILE_PATH      = ''
 CMD_PIPE_FILE      = ''
@@ -106,7 +107,12 @@ def main(argv):
 
 	daemonize()
 
-	logFile = open(LOG_FILE, 'a')
+	try:
+		logFile = open(LOG_FILE, 'a')
+
+	except IOError:
+		sys.stderr.write(f"Creating log file failed: {e.errno} - {e.strerror}\n")
+		sys.exit(1)
 
 	logFile.write(f"\n================================================================\nConfiguration:\n")
 	logFile.write(f"\tPID = [{PID_NUM}]\n")
@@ -121,12 +127,20 @@ def main(argv):
 
 	except OSError as e: 
 		logFile.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f"Erro creating cmd pipe file: {e.errno} - {e.strerror}\n")
-		ret = 1
+		sys.exit(1)
 
-	else:
-		# CMD_PIPE_FILE = open(CMD_PIPE_FILE_PATH, "rw")
-		ret = runBot(logFile, BINANCE_PAIR, binance_apiKey, binance_sekKey)
+#	try:
+#		CMD_PIPE_FILE = open(CMD_PIPE_FILE_PATH, "r")
 
+#	except IOError:
+#		sys.stderr.write(f"Opeing cmd pipe file failed: {e.errno} - {e.strerror}\n")
+# 		sys.exit(1)
+
+	ret = runBot(logFile, BINANCE_PAIR, binance_apiKey, binance_sekKey)
+
+	logFile.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f"BOT return: [{ret}]\n")
+
+#	CMD_PIPE_FILE.close()
 	logFile.close()
 
 	sys.exit(ret)
