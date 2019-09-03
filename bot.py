@@ -14,59 +14,61 @@ import errno
 from binance.client import Client
 from binance.exceptions import BinanceAPIException, BinanceWithdrawException, BinanceRequestException
 
-# these variables will be cleared over course of time..
-PID_NUM            = 0
-PID_FILE_PATH      = ''
-CMD_PIPE_FILE      = ''
-CMD_PIPE_FILE_PATH = ''
-LOG_FILE           = ''
-WORK_PATH          = ''
-BINANCE_PAIR       = ''
+class botCfg:
+	cfg = {}
+
+	def get(self, param):
+		return self.cfg.get(param, 'UNDEF')
+
+	def set(self, param, value):
+		self.cfg[param] = value
+
+cfg = botCfg()
 
 # ----------------------------------------------------------------------------------------
 
 def removePidFile():
-	global PID_FILE_PATH
-	global CMD_PIPE_FILE_PATH
+	global cfg
 
-	os.remove(PID_FILE_PATH)
-	os.remove(CMD_PIPE_FILE_PATH)
+	os.remove(cfg.get('pid_file_path'))
+	os.remove(cfg.get('cmd_pipe_file_path'))
 
 def daemonize():
-	global PID_FILE_PATH
-	global PID_NUM
-	global WORK_PATH
-	global BINANCE_PAIR
+	pid_num = 0
+	global cfg
 
 	try:
-		PID_NUM = os.fork()
-		if PID_NUM > 0:
+		pid_num = os.fork()
+		if pid_num > 0:
 			sys.exit(0)
 
 	except OSError as e:
 		sys.stderr.write(f"Fork failed: {e.errno} - {e.strerror}\n")
 		sys.exit(1)
 
-	os.chdir(WORK_PATH)
+	cfg.set('pid', os.getpid())
+
+	os.chdir(cfg.get('work_path'))
 	os.setsid()
 	os.umask(0)
 
 	atexit.register(removePidFile)
-	PID_NUM = str(os.getpid())
 
-	f = open(PID_FILE_PATH, 'w+')
-	f.write(f"{PID_NUM}\n{CMD_PIPE_FILE_PATH}\n{LOG_FILE}\n{WORK_PATH}\n{BINANCE_PAIR}\n")
+	f = open(cfg.get('pid_file_path'), 'w+')
+	f.write(f"{cfg.get('pid')}\n{cfg.get('cmd_pipe_file_path')}\n{cfg.get('log_file')}\n{cfg.get('work_path')}\n{cfg.get('binance_pair')}\n")
 	f.close()
 
 # ----------------------------------------------------------------------------------------
 
-def runBot(log, binancePair, apikey, sekkey):
+def runBot(log):
+	global cfg
+
 	log.write(time.strftime("%d/%m/%Y %H:%M:%S", time.localtime()) + " --- Stating ---\n")
 
-	client = Client(apikey, sekkey, {"verify": True, "timeout": 20})
+	client = Client(cfg.get('binance_apikey'), cfg.get('binance_sekkey'), {"verify": True, "timeout": 20})
 
 	try:
-		getPrice = client.get_symbol_ticker(symbol=binancePair)
+		getPrice = client.get_symbol_ticker(symbol=cfg.get('binance_pair'))
 
 	except BinanceAPIException as e:
 		log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Binance API exception: {e.status_code} - {e.message}\n')
@@ -89,41 +91,36 @@ def runBot(log, binancePair, apikey, sekkey):
 def main(argv):
 	ret = 0
 
-	binance_apiKey = os.getenv('BINANCE_APIKEY', 'NOTDEF_APIKEY')
-	binance_sekKey = os.getenv('BINANCE_SEKKEY', 'NOTDEF_SEKKEY')
+	global cfg
 
-	global PID_FILE_PATH
-	global CMD_PIPE_FILE
-	global CMD_PIPE_FILE_PATH
-	global LOG_FILE
-	global WORK_PATH
-	global BINANCE_PAIR
+	cfg.set('binance_apikey', os.getenv('BINANCE_APIKEY', 'NOTDEF_APIKEY'))
+	cfg.set('binance_sekkey', os.getenv('BINANCE_SEKKEY', 'NOTDEF_APIKEY'))
 
-	WORK_PATH          = argv[1]
-	PID_FILE_PATH      = f"{argv[2]}_pid.text"
-	CMD_PIPE_FILE_PATH = f"{argv[2]}_pipecmd"
-	LOG_FILE           = f"{argv[2]}_log.text"
-	BINANCE_PAIR       = argv[3]
+	cfg.set('work_path', argv[1])
+	cfg.set('pid_file_path', f"{argv[2]}_pid.text")
+	cfg.set('cmd_pipe_file_path', f"{argv[2]}_pipecmd")
+	cfg.set('log_file', f"{argv[2]}_log.text")
+	cfg.set('binance_pair', argv[3])
 
 	daemonize()
 
 	try:
-		logFile = open(LOG_FILE, 'a')
+		logFile = open(cfg.get('log_file'), 'a')
 
 	except IOError:
 		sys.stderr.write(f"Creating log file failed: {e.errno} - {e.strerror}\n")
 		sys.exit(1)
 
 	logFile.write(f"\n================================================================\nConfiguration:\n")
-	logFile.write(f"\tPID = [{PID_NUM}]\n")
-	logFile.write(f"\tPID file = [{PID_FILE_PATH}]\n")
-	logFile.write(f"\tCMD pipe = [{CMD_PIPE_FILE_PATH}]\n")
-	logFile.write(f"\tWorking path = [{WORK_PATH}]\n")
-	logFile.write(f"\tBinance pair = [{BINANCE_PAIR}]\n")
-	logFile.write(f"\tBinance API key = [{binance_apiKey}]\n\n")
+	logFile.write(f"\tPID = [{cfg.get('pid')}]\n")
+	logFile.write(f"\tPID file = [{cfg.get('pid_file_path')}]\n")
+	logFile.write(f"\tCMD pipe = [{cfg.get('cmd_pipe_file_path')}]\n")
+	logFile.write(f"\tWorking path = [{cfg.get('work_path')}]\n")
+	logFile.write(f"\tBinance pair = [{cfg.get('binance_pair')}]\n")
+	logFile.write(f"\tBinance API key = [{cfg.get('binance_apikey')}]\n\n")
 
 	try:
-		os.mkfifo(CMD_PIPE_FILE_PATH)
+		os.mkfifo(cfg.get('cmd_pipe_file_path'))
 
 	except OSError as e: 
 		logFile.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f"Erro creating cmd pipe file: {e.errno} - {e.strerror}\n")
@@ -136,7 +133,8 @@ def main(argv):
 #		sys.stderr.write(f"Opeing cmd pipe file failed: {e.errno} - {e.strerror}\n")
 # 		sys.exit(1)
 
-	ret = runBot(logFile, BINANCE_PAIR, binance_apiKey, binance_sekKey)
+#	ret = runBot(logFile, BINANCE_PAIR, binance_apiKey, binance_sekKey)
+	ret = runBot(logFile)
 
 	logFile.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f"BOT return: [{ret}]\n")
 
