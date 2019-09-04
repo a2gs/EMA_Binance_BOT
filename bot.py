@@ -63,6 +63,8 @@ def daemonize():
 def runBot(log):
 	global cfg
 
+	pair = cfg.get('binance_pair')
+
 	log.write(time.strftime("%d/%m/%Y %H:%M:%S", time.localtime()) + " --- Stating ---\n")
 
 	client = Client(cfg.get('binance_apikey'), cfg.get('binance_sekkey'), {"verify": True, "timeout": 20})
@@ -73,12 +75,25 @@ def runBot(log):
 		return 1
 
 	# 1 Pair wallet
-	pair1 = client.get_asset_balance(cfg.get('binance_pair')[:3])
-	log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Symbol 1 on wallet: [' + cfg.get('binance_pair')[:3] + ']\tFree: [' + pair1['free'] + ']\tLocked: [' + pair1['locked'] + ']\n')
+	pair1 = client.get_asset_balance(pair[:3])
+	log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Symbol 1 on wallet: [' + pair[:3] + ']\tFree: [' + pair1['free'] + ']\tLocked: [' + pair1['locked'] + ']\n')
 
 	# 2 Pair wallet
-	pair2 = client.get_asset_balance(cfg.get('binance_pair')[3:])
-	log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Symbol 2 on wallet: [' + cfg.get('binance_pair')[3:] + ']\tFree: [' + pair2['free'] + ']\tLocked: [' + pair2['locked'] + ']\n')
+	pair2 = client.get_asset_balance(pair[3:])
+	log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Symbol 2 on wallet: [' + pair[3:] + ']\tFree: [' + pair2['free'] + ']\tLocked: [' + pair2['locked'] + ']\n')
+
+	# Open orders
+	openOrders = client.get_open_orders(symbol=pair)
+	for openOrder in openOrders:
+		log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Order id [' + str(openOrder['orderId']) + '] data:\n' 
+							 + '\tPrice.......: [' + openOrder['price']          + ']\n'
+							 + '\tQtd.........: [' + openOrder['origQty']        + ']\n'
+							 + '\tQtd executed: [' + openOrder['executedQty']    + ']\n'
+							 + '\tSide........: [' + openOrder['side']           + ']\n'
+							 + '\tType........: [' + openOrder['type']           + ']\n'
+							 + '\tStop price..: [' + openOrder['stopPrice']      + ']\n'
+							 + '\tIs working..: [' + str(openOrder['isWorking']) + ']\n')
+
 
 	# Pair price
 	try:
