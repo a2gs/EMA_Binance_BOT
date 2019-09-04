@@ -67,6 +67,10 @@ def runBot(log):
 
 	client = Client(cfg.get('binance_apikey'), cfg.get('binance_sekkey'), {"verify": True, "timeout": 20})
 
+	if client.get_system_status()['status'] != 0:
+		print('Binance out of service')
+		return 1
+
 	try:
 		getPrice = client.get_symbol_ticker(symbol=cfg.get('binance_pair'))
 
