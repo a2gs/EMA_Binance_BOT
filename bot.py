@@ -86,14 +86,13 @@ def runBot(log):
 	openOrders = client.get_open_orders(symbol=pair)
 	for openOrder in openOrders:
 		log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Order id [' + str(openOrder['orderId']) + '] data:\n' 
-							 + '\tPrice.......: [' + openOrder['price']          + ']\n'
-							 + '\tQtd.........: [' + openOrder['origQty']        + ']\n'
-							 + '\tQtd executed: [' + openOrder['executedQty']    + ']\n'
-							 + '\tSide........: [' + openOrder['side']           + ']\n'
-							 + '\tType........: [' + openOrder['type']           + ']\n'
-							 + '\tStop price..: [' + openOrder['stopPrice']      + ']\n'
-							 + '\tIs working..: [' + str(openOrder['isWorking']) + ']\n')
-
+			+ '\tPrice.......: [' + openOrder['price']          + ']\n'
+			+ '\tQtd.........: [' + openOrder['origQty']        + ']\n'
+			+ '\tQtd executed: [' + openOrder['executedQty']    + ']\n'
+			+ '\tSide........: [' + openOrder['side']           + ']\n'
+			+ '\tType........: [' + openOrder['type']           + ']\n'
+			+ '\tStop price..: [' + openOrder['stopPrice']      + ']\n'
+			+ '\tIs working..: [' + str(openOrder['isWorking']) + ']\n')
 
 	# Pair price
 	try:
@@ -101,15 +100,15 @@ def runBot(log):
 
 	except BinanceAPIException as e:
 		log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Binance API exception: {e.status_code} - {e.message}\n')
-		return 1
+		return 2
 
 	except BinanceRequestException as e:
 		log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Binance request exception: {e.status_code} - {e.message}\n')
-		return 2
+		return 3
 
 	except BinanceWithdrawException as e:
 		log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Binance withdraw exception: {e.status_code} - {e.message}\n')
-		return 3
+		return 4
 
 	log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Symbol: [' + getPrice['symbol'] + '] Price: [' + getPrice['price'] + ']\n')
 
