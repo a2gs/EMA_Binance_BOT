@@ -67,10 +67,20 @@ def runBot(log):
 
 	client = Client(cfg.get('binance_apikey'), cfg.get('binance_sekkey'), {"verify": True, "timeout": 20})
 
+	# Exchange status
 	if client.get_system_status()['status'] != 0:
 		print('Binance out of service')
 		return 1
 
+	# 1 Pair wallet
+	pair1 = client.get_asset_balance(cfg.get('binance_pair')[:3])
+	log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Symbol 1 on wallet: [' + cfg.get('binance_pair')[:3] + ']\tFree: [' + pair1['free'] + ']\tLocked: [' + pair1['locked'] + ']\n')
+
+	# 2 Pair wallet
+	pair2 = client.get_asset_balance(cfg.get('binance_pair')[3:])
+	log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Symbol 2 on wallet: [' + cfg.get('binance_pair')[3:] + ']\tFree: [' + pair2['free'] + ']\tLocked: [' + pair2['locked'] + ']\n')
+
+	# Pair price
 	try:
 		getPrice = client.get_symbol_ticker(symbol=cfg.get('binance_pair'))
 
