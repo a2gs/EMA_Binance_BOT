@@ -26,16 +26,16 @@ def main(argv):
 
 	print(f'Population = {r} - Len: [{len(r)}]')
 
-	smaSeedVar = sma(qtdPopulation, r)
+	smaSeedVar = sma(emaRequest, r[:emaRequest])
 
 	k = 2 / (emaRequest + 1)
 
 	print(f'SMA({argv[1]}) = [{smaSeedVar}] | EMA({emaRequest}) | k = {k}')
 
 	seed = smaSeedVar
-	emaVar = r[emaRequest + 1]
+	emaVar = 0
 
-	for x in range(emaRequest + 1, qtdPopulation):
+	for x in range(emaRequest, qtdPopulation):
 
 		emaVar = ema(r[x], seed, k)
 
