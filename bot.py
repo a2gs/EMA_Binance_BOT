@@ -65,7 +65,7 @@ def runBot(log):
 
 	pair = cfg.get('binance_pair')
 
-	log.write(time.strftime("%d/%m/%Y %H:%M:%S", time.localtime()) + " --- Stating ---\n")
+	log.write(time.strftime("%d/%m/%Y %H:%M:%S", time.localtime()) + "--- Wallet status ---\n")
 
 	client = Client(cfg.get('binance_apikey'), cfg.get('binance_sekkey'), {"verify": True, "timeout": 20})
 
@@ -76,11 +76,13 @@ def runBot(log):
 
 	# 1 Pair wallet
 	pair1 = client.get_asset_balance(pair[:3])
-	log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Symbol 1 on wallet: [' + pair[:3] + ']\tFree: [' + pair1['free'] + ']\tLocked: [' + pair1['locked'] + ']\n')
+	log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Symbol 1 on wallet: ['
+		+ pair[:3] + ']\tFree: [' + pair1['free'] + ']\tLocked: [' + pair1['locked'] + ']\n')
 
 	# 2 Pair wallet
 	pair2 = client.get_asset_balance(pair[3:])
-	log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Symbol 2 on wallet: [' + pair[3:] + ']\tFree: [' + pair2['free'] + ']\tLocked: [' + pair2['locked'] + ']\n')
+	log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Symbol 2 on wallet: ['
+		+ pair[3:] + ']\tFree: [' + pair2['free'] + ']\tLocked: [' + pair2['locked'] + ']\n')
 
 	# Open orders
 	openOrders = client.get_open_orders(symbol=pair)
@@ -94,21 +96,45 @@ def runBot(log):
 			+ '\tStop price..: [' + openOrder['stopPrice']      + ']\n'
 			+ '\tIs working..: [' + str(openOrder['isWorking']) + ']\n')
 
+	del pair1
+	del pair2
+	del openOrders
+
+# ---------
+	log.write(time.strftime("%d/%m/%Y %H:%M:%S", time.localtime()) + "--- Loading data ---\n")
+
+	lastPrices = []
+
+	slow_emaAux = int(cfg.get('slow_ema'))
+
+	closedPrices = client.get_klines(symbol=pair, interval=cfg.get('time_sample'))[-slow_emaAux:]
+	for i in range(1, slow_emaAux):
+		lastPrices.append(float(closedPrices[i][4]))
+
+	# print(lastPrices)
+
+	del closedPrices
+	del slow_emaAux
+
+# ---------
+
+	log.write(time.strftime("%d/%m/%Y %H:%M:%S", time.localtime()) + "--- Stating ---\n")
+
 	# Pair price
 	try:
 		getPrice = client.get_symbol_ticker(symbol=cfg.get('binance_pair'))
 
 	except BinanceAPIException as e:
 		log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Binance API exception: {e.status_code} - {e.message}\n')
-		return 2
+		return 1
 
 	except BinanceRequestException as e:
 		log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Binance request exception: {e.status_code} - {e.message}\n')
-		return 3
+		return 2
 
 	except BinanceWithdrawException as e:
 		log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Binance withdraw exception: {e.status_code} - {e.message}\n')
-		return 4
+		return 3
 
 	log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Symbol: [' + getPrice['symbol'] + '] Price: [' + getPrice['price'] + ']\n')
 
@@ -131,7 +157,34 @@ def main(argv):
 	cfg.set('binance_pair', argv[3])
 	cfg.set('fast_ema', argv[4])
 	cfg.set('slow_ema', argv[5])
-	cfg.set('time_sample', argv[6])
+
+	klineAPIIntervals = {
+		'1m'  : Client.KLINE_INTERVAL_1MINUTE,
+		'3m'  : Client.KLINE_INTERVAL_3MINUTE,
+		'5m'  : Client.KLINE_INTERVAL_5MINUTE,
+		'15m' : Client.KLINE_INTERVAL_15MINUTE,
+		'30m' : Client.KLINE_INTERVAL_30MINUTE,
+		'1h'  : Client.KLINE_INTERVAL_1HOUR,
+		'2h'  : Client.KLINE_INTERVAL_2HOUR,
+		'4h'  : Client.KLINE_INTERVAL_4HOUR,
+		'6h'  : Client.KLINE_INTERVAL_6HOUR,
+		'8h'  : Client.KLINE_INTERVAL_8HOUR,
+		'12h' : Client.KLINE_INTERVAL_12HOUR,
+		'1d'  : Client.KLINE_INTERVAL_1DAY,
+		'3d'  : Client.KLINE_INTERVAL_3DAY,
+		'1w'  : Client.KLINE_INTERVAL_1WEEK,
+		'1M'  : Client.KLINE_INTERVAL_1MONTH
+	}
+
+	try:
+		cfg.set('time_sample', klineAPIIntervals[argv[6]])
+
+	except KeyError as e:
+		print(f'Error: time sample {argv[6]} not defined. Use one of: ')
+		print(klineAPIIntervals.keys())
+		sys.exit(1)
+
+	del klineAPIIntervals
 
 	daemonize()
 
@@ -180,6 +233,22 @@ if __name__ == '__main__':
 
 	if len(sys.argv) != 7:
 		print(f"Usage:\n\t{sys.argv[0]} <BOT_ID> <WORK_PATH> <BINANCE_PAIR> <FAST_EMA> <SLOW_EMA> <TIME_SAMPLE>\nSample:\n\t{sys.argv[0]} ./ BOT1 BNBBTC\n")
+		print("Where <TIME_SAMPLE>:"
+			+ "\t1m = 1MINUTE\n"
+			+ "\t3m = 3MINUTE\n"
+			+ "\t5m = 5MINUTE\n"
+			+ "\t15m = 15MINUTE\n"
+			+ "\t30m = 30MINUTE\n"
+			+ "\t1h = 1HOUR\n"
+			+ "\t2h = 2HOUR\n"
+			+ "\t4h = 4HOUR\n"
+			+ "\t6h = 6HOUR\n"
+			+ "\t8h = 8HOUR\n"
+			+ "\t12h = 12HOUR\n"
+			+ "\t1d = 1DAY\n"
+			+ "\t3d = 3DAY\n"
+			+ "\t1w = 1WEEK\n"
+			+ "\t1M = 1MONTH\n")
 		sys.exit(1)
 
 	else:
