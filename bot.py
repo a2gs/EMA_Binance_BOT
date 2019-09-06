@@ -183,6 +183,7 @@ def runBot(log):
 	emaSlow = ema(slow_emaAux, lastPrices)
 	emaFast = ema(fast_emaAux, lastPrices[len(lastPrices) - fast_emaAux:])
 
+	del lastPrices
 	del closedPrices
 	del slow_emaAux
 	del fast_emaAux
