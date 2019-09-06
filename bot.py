@@ -184,6 +184,7 @@ def runBot(log):
 
 	del closedPrices
 	del slow_emaAux
+	del fast_emaAux
 
 
 
