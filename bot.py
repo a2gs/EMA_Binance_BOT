@@ -91,34 +91,47 @@ def runBot(log):
 
 	log.write(time.strftime("%d/%m/%Y %H:%M:%S", time.localtime()) + "--- Wallet status ---\n")
 
-	client = Client(cfg.get('binance_apikey'), cfg.get('binance_sekkey'), {"verify": True, "timeout": 20})
+	try:
+		client = Client(cfg.get('binance_apikey'), cfg.get('binance_sekkey'), {"verify": True, "timeout": 20})
 
-	# Exchange status
-	if client.get_system_status()['status'] != 0:
-		print('Binance out of service')
+		# Exchange status
+		if client.get_system_status()['status'] != 0:
+			print('Binance out of service')
+			return 1
+
+		# 1 Pair wallet
+		pair1 = client.get_asset_balance(pair[:3])
+		log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Symbol 1 on wallet: ['
+			+ pair[:3] + ']\tFree: [' + pair1['free'] + ']\tLocked: [' + pair1['locked'] + ']\n')
+
+		# 2 Pair wallet
+		pair2 = client.get_asset_balance(pair[3:])
+		log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Symbol 2 on wallet: ['
+			+ pair[3:] + ']\tFree: [' + pair2['free'] + ']\tLocked: [' + pair2['locked'] + ']\n')
+
+		# Open orders
+		openOrders = client.get_open_orders(symbol=pair)
+		for openOrder in openOrders:
+			log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Order id [' + str(openOrder['orderId']) + '] data:\n' 
+				+ '\tPrice.......: [' + openOrder['price']          + ']\n'
+				+ '\tQtd.........: [' + openOrder['origQty']        + ']\n'
+				+ '\tQtd executed: [' + openOrder['executedQty']    + ']\n'
+				+ '\tSide........: [' + openOrder['side']           + ']\n'
+				+ '\tType........: [' + openOrder['type']           + ']\n'
+				+ '\tStop price..: [' + openOrder['stopPrice']      + ']\n'
+				+ '\tIs working..: [' + str(openOrder['isWorking']) + ']\n')
+
+	except BinanceAPIException as e:
+		log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Binance API exception: {e.status_code} - {e.message}\n')
 		return 1
 
-	# 1 Pair wallet
-	pair1 = client.get_asset_balance(pair[:3])
-	log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Symbol 1 on wallet: ['
-		+ pair[:3] + ']\tFree: [' + pair1['free'] + ']\tLocked: [' + pair1['locked'] + ']\n')
+	except BinanceRequestException as e:
+		log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Binance request exception: {e.status_code} - {e.message}\n')
+		return 2
 
-	# 2 Pair wallet
-	pair2 = client.get_asset_balance(pair[3:])
-	log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Symbol 2 on wallet: ['
-		+ pair[3:] + ']\tFree: [' + pair2['free'] + ']\tLocked: [' + pair2['locked'] + ']\n')
-
-	# Open orders
-	openOrders = client.get_open_orders(symbol=pair)
-	for openOrder in openOrders:
-		log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Order id [' + str(openOrder['orderId']) + '] data:\n' 
-			+ '\tPrice.......: [' + openOrder['price']          + ']\n'
-			+ '\tQtd.........: [' + openOrder['origQty']        + ']\n'
-			+ '\tQtd executed: [' + openOrder['executedQty']    + ']\n'
-			+ '\tSide........: [' + openOrder['side']           + ']\n'
-			+ '\tType........: [' + openOrder['type']           + ']\n'
-			+ '\tStop price..: [' + openOrder['stopPrice']      + ']\n'
-			+ '\tIs working..: [' + str(openOrder['isWorking']) + ']\n')
+	except BinanceWithdrawException as e:
+		log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Binance withdraw exception: {e.status_code} - {e.message}\n')
+		return 3
 
 	del pair1
 	del pair2
@@ -130,10 +143,25 @@ def runBot(log):
 
 	lastPrices = []
 
-	slow_emaAux = int(cfg.get('slow_ema'))
+	slow_emaAux = cfg.get('slow_ema')
+	fast_emaAux = cfg.get('fast_ema')
 
 	# the last candle is running, so it will be descarded
-	closedPrices = client.get_klines(symbol=pair, interval=cfg.get('time_sample'))[-slow_emaAux-1:-1]
+	try:
+		closedPrices = client.get_klines(symbol=pair, interval=cfg.get('time_sample'))[-slow_emaAux-1:-1]
+
+	except BinanceAPIException as e:
+	   log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Binance API exception: {e.status_code} - {e.message}\n')
+	   return 1
+
+	except BinanceRequestException as e:
+	   log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Binance request exception: {e.status_code} - {e.message}\n')
+	   return 2
+
+	except BinanceWithdrawException as e:
+	   log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Binance withdraw exception: {e.status_code} - {e.message}\n')
+	   return 3
+
 	for i in range(0, slow_emaAux):
 		lastPrices.append(float(closedPrices[i][4]))
 
@@ -151,11 +179,13 @@ def runBot(log):
 
 	log.write(time.strftime("%d/%m/%Y %H:%M:%S", time.localtime()) + f'Last completed candle time: {nextSrvTime}')
 
+	emaSlow = ema(slow_emaAux, lastPrices)
+	emaFast = ema(fast_emaAux, lastPrices[len(lastPrices) - fast_emaAux:])
+
 	del closedPrices
 	del slow_emaAux
 
-	emaSlow = ema(int(cfg.get('slow_ema')), lastPrices)
-	emaFast = ema(int(cfg.get('fast_ema')), lastPrices[len(lastPrices) - int(cfg.get('fast_ema')):])
+
 
 	print(f'EMA slow {emaSlow.getCurrent()} | EMA fast {emaFast.getCurrent()}')
 
@@ -198,8 +228,8 @@ def main(argv):
 	cfg.set('cmd_pipe_file_path', f"{argv[2]}_pipecmd")
 	cfg.set('log_file', f"{argv[2]}_log.text")
 	cfg.set('binance_pair', argv[3])
-	cfg.set('fast_ema', argv[4])
-	cfg.set('slow_ema', argv[5])
+	cfg.set('fast_ema', int(argv[4]))
+	cfg.set('slow_ema', int(argv[5]))
 
 	klineAPIIntervals = {
 		'1m'  : Client.KLINE_INTERVAL_1MINUTE,
