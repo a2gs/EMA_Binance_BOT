@@ -135,6 +135,7 @@ def runBot(log):
 
 	del pair1
 	del pair2
+	del openOrder
 	del openOrders
 
 # ---------
