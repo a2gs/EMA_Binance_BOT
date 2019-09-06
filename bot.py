@@ -60,8 +60,32 @@ def daemonize():
 
 # ----------------------------------------------------------------------------------------
 
+class ema:
+	__ema = 0.0
+	__k = 0
+	__seed = 0.0
+
+	def __init__(self, ema, ema_initPopulation):	
+		self.__k = 2 / (ema + 1)
+		self.__ema = ema
+		self.__seed = sum(ema_initPopulation) / ema
+#		print('---')
+#		print(f'EMA: {self.__ema} seed: {self.__seed} len: ')
+#		print(len(ema_initPopulation))
+#		print(ema_initPopulation)
+
+	def getCurrent(self):
+		return(self.__seed)
+
+	def insertNewValue(self, new):
+		ret = ((new - self.__seed) * self.__k) + self.__seed
+		self.__seed = ret
+		return(ret)
+
 def runBot(log):
 	global cfg
+
+	nextSrvTime = 0
 
 	pair = cfg.get('binance_pair')
 
@@ -101,20 +125,39 @@ def runBot(log):
 	del openOrders
 
 # ---------
+
 	log.write(time.strftime("%d/%m/%Y %H:%M:%S", time.localtime()) + "--- Loading data ---\n")
 
 	lastPrices = []
 
 	slow_emaAux = int(cfg.get('slow_ema'))
 
-	closedPrices = client.get_klines(symbol=pair, interval=cfg.get('time_sample'))[-slow_emaAux:]
-	for i in range(1, slow_emaAux):
+	# the last candle is running, so it will be descarded
+	closedPrices = client.get_klines(symbol=pair, interval=cfg.get('time_sample'))[-slow_emaAux-1:-1]
+	for i in range(0, slow_emaAux):
 		lastPrices.append(float(closedPrices[i][4]))
 
-	# print(lastPrices)
+	#print('return closedPrices:')
+	#print(closedPrices)
+	#print(len(closedPrices))
+	#print('---')
+
+	#print("Prices:")
+	#print(lastPrices)
+	#print("Prices len:")
+	#print(len(lastPrices))
+
+	nextSrvTime = closedPrices[-1:][0][0]
+
+	log.write(time.strftime("%d/%m/%Y %H:%M:%S", time.localtime()) + f'Last completed candle time: {nextSrvTime}')
 
 	del closedPrices
 	del slow_emaAux
+
+	emaSlow = ema(int(cfg.get('slow_ema')), lastPrices)
+	emaFast = ema(int(cfg.get('fast_ema')), lastPrices[len(lastPrices) - int(cfg.get('fast_ema')):])
+
+	print(f'EMA slow {emaSlow.getCurrent()} | EMA fast {emaFast.getCurrent()}')
 
 # ---------
 
