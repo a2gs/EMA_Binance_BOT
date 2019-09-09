@@ -10,6 +10,7 @@ import sys
 import atexit
 import time
 import errno
+import signal
 
 from binance.client import Client
 from binance.exceptions import BinanceAPIException, BinanceWithdrawException, BinanceRequestException
@@ -24,8 +25,13 @@ class botCfg:
 		self.cfg[param] = value
 
 cfg = botCfg()
+runningBot = True # Used to stop/start bot main loop (cmds from pipe file)
 
 # ----------------------------------------------------------------------------------------
+
+def sigHandler(signum, frame):
+	sys.stderr.write(f'Singal {signum} received')
+	sys.exit(0)
 
 def removePidFile():
 	global cfg
@@ -84,6 +90,7 @@ class ema:
 
 def runBot(log):
 	global cfg
+	global runningBot
 
 	nextSrvTime = 0
 
@@ -190,7 +197,7 @@ def runBot(log):
 
 
 
-	print(f'EMA slow {emaSlow.getCurrent()} | EMA fast {emaFast.getCurrent()}')
+	#print(f'EMA slow {emaSlow.getCurrent()} | EMA fast {emaFast.getCurrent()}')
 
 # ---------
 
@@ -213,6 +220,19 @@ def runBot(log):
 		return 3
 
 	log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Symbol: [' + getPrice['symbol'] + '] Price: [' + getPrice['price'] + ']\n')
+
+	botIteracSleepMin = 1.5
+
+	runningBot = True
+
+	while runningBot:
+
+
+		log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Sleeping {botIteracSleepMin} minutes...\n')
+		log.flush()
+		time.sleep(botIteracSleepMin * 60)
+
+
 
 	return 0
 
@@ -263,6 +283,13 @@ def main(argv):
 	del klineAPIIntervals
 
 	daemonize()
+
+	signal.signal(signal.SIGILL, sigHandler)
+	signal.signal(signal.SIGTRAP, sigHandler)
+	signal.signal(signal.SIGINT, sigHandler)
+	signal.signal(signal.SIGHUP, sigHandler)
+	signal.signal(signal.SIGTERM, sigHandler)
+	signal.signal(signal.SIGSEGV, sigHandler)
 
 	try:
 		logFile = open(cfg.get('log_file'), 'a')
