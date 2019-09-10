@@ -88,11 +88,15 @@ class ema:
 		self.__seed = ret
 		return(ret)
 
+	def forecastValue(self, new):
+		ret = ((new - self.__seed) * self.__k) + self.__seed
+		return(ret)
+
 def runBot(log):
 	global cfg
 	global runningBot
 
-	nextSrvTime = 0
+	nextSrvIdTime = 0
 
 	pair = cfg.get('binance_pair')
 
@@ -100,33 +104,6 @@ def runBot(log):
 
 	try:
 		client = Client(cfg.get('binance_apikey'), cfg.get('binance_sekkey'), {"verify": True, "timeout": 20})
-
-		# Exchange status
-		if client.get_system_status()['status'] != 0:
-			print('Binance out of service')
-			return 1
-
-		# 1 Pair wallet
-		pair1 = client.get_asset_balance(pair[:3])
-		log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Symbol 1 on wallet: ['
-			+ pair[:3] + ']\tFree: [' + pair1['free'] + ']\tLocked: [' + pair1['locked'] + ']\n')
-
-		# 2 Pair wallet
-		pair2 = client.get_asset_balance(pair[3:])
-		log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Symbol 2 on wallet: ['
-			+ pair[3:] + ']\tFree: [' + pair2['free'] + ']\tLocked: [' + pair2['locked'] + ']\n')
-
-		# Open orders
-		openOrders = client.get_open_orders(symbol=pair)
-		for openOrder in openOrders:
-			log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Order id [' + str(openOrder['orderId']) + '] data:\n' 
-				+ '\tPrice.......: [' + openOrder['price']          + ']\n'
-				+ '\tQtd.........: [' + openOrder['origQty']        + ']\n'
-				+ '\tQtd executed: [' + openOrder['executedQty']    + ']\n'
-				+ '\tSide........: [' + openOrder['side']           + ']\n'
-				+ '\tType........: [' + openOrder['type']           + ']\n'
-				+ '\tStop price..: [' + openOrder['stopPrice']      + ']\n'
-				+ '\tIs working..: [' + str(openOrder['isWorking']) + ']\n')
 
 	except BinanceAPIException as e:
 		log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Binance API exception: {e.status_code} - {e.message}\n')
@@ -139,6 +116,33 @@ def runBot(log):
 	except BinanceWithdrawException as e:
 		log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Binance withdraw exception: {e.status_code} - {e.message}\n')
 		return 3
+
+	# Exchange status
+	if client.get_system_status()['status'] != 0:
+		print('Binance out of service')
+		return 1
+
+	# 1 Pair wallet
+	pair1 = client.get_asset_balance(pair[:3])
+	log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Symbol 1 on wallet: ['
+		+ pair[:3] + ']\tFree: [' + pair1['free'] + ']\tLocked: [' + pair1['locked'] + ']\n')
+
+	# 2 Pair wallet
+	pair2 = client.get_asset_balance(pair[3:])
+	log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Symbol 2 on wallet: ['
+		+ pair[3:] + ']\tFree: [' + pair2['free'] + ']\tLocked: [' + pair2['locked'] + ']\n')
+
+	# Open orders
+	openOrders = client.get_open_orders(symbol=pair)
+	for openOrder in openOrders:
+		log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Order id [' + str(openOrder['orderId']) + '] data:\n' 
+			+ '\tPrice.......: [' + openOrder['price']          + ']\n'
+			+ '\tQtd.........: [' + openOrder['origQty']        + ']\n'
+			+ '\tQtd executed: [' + openOrder['executedQty']    + ']\n'
+			+ '\tSide........: [' + openOrder['side']           + ']\n'
+			+ '\tType........: [' + openOrder['type']           + ']\n'
+			+ '\tStop price..: [' + openOrder['stopPrice']      + ']\n'
+			+ '\tIs working..: [' + str(openOrder['isWorking']) + ']\n')
 
 	del pair1
 	del pair2
@@ -183,25 +187,23 @@ def runBot(log):
 	#print("Prices len:")
 	#print(len(lastPrices))
 
-	nextSrvTime = closedPrices[-1:][0][0]
-
-	log.write(time.strftime("%d/%m/%Y %H:%M:%S", time.localtime()) + f'Last completed candle time: {nextSrvTime}')
+	log.write(time.strftime("%d/%m/%Y %H:%M:%S", time.localtime()) + f'Last completed candle time: {nextSrvIdTime}')
 
 	emaSlow = ema(slow_emaAux, lastPrices)
 	emaFast = ema(fast_emaAux, lastPrices[len(lastPrices) - fast_emaAux:])
+
+	nextSrvIdTime = closedPrices[-1:][0][0] + 1
 
 	del lastPrices
 	del closedPrices
 	del slow_emaAux
 	del fast_emaAux
 
-
-
-	#print(f'EMA slow {emaSlow.getCurrent()} | EMA fast {emaFast.getCurrent()}')
+	log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Initial slow EMA {emaSlow.getCurrent()} | Initial fast EMA {emaFast.getCurrent()}')
 
 # ---------
 
-	log.write(time.strftime("%d/%m/%Y %H:%M:%S", time.localtime()) + "--- Stating ---\n")
+	log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + "--- Stating ---\n")
 
 	# Pair price
 	try:
@@ -227,12 +229,42 @@ def runBot(log):
 
 	while runningBot:
 
+		try:
+			clast = client.get_klines(symbol=pair, interval=cfg.get('time_sample'))[-1:][0]
+
+		except BinanceAPIException as e:
+			log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Binance API exception: {e.status_code} - {e.message}\n')
+			return 1
+
+		except BinanceRequestException as e:
+			log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Binance request exception: {e.status_code} - {e.message}\n')
+			return 2
+
+		except BinanceWithdrawException as e:
+			log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Binance withdraw exception: {e.status_code} - {e.message}\n')
+			return 3
+
+		cLastTimeId = clast[0]
+		cLastPrice  = float(clast[4])
+
+		if cLastTimeId == nextSrvIdTime:
+
+			# Just a forecast for the current (not closed) candle
+
+			log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Current value: [{cLastPrice}] | Current time Id: [{cLastTimeId}] | Slow EMA prediction: [{emaSlow.forecastValue(cLastPrice)}] | Fast EMA prediction: [{emaFast.forecastValue(cLastPrice)}]\n')
+			
+		else:
+
+			emaSlow.insertNewValue(cLastPrice)
+			emaFast.insertNewValue(cLastPrice)
+
+			cLastTimeId = nextSrvIdTime + 1
+
+			log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Closed candle! Value: [{cLastPrice}] | Time Id: [{cLastTimeId}] | Slow EMA: [{emaSlow.getCurrent()}] | Fast EMA: [{emaFast.getCurrent()}]\n')
 
 		log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Sleeping {botIteracSleepMin} minutes...\n')
 		log.flush()
 		time.sleep(botIteracSleepMin * 60)
-
-
 
 	return 0
 
