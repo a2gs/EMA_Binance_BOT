@@ -30,7 +30,7 @@ runningBot = True # Used to stop/start bot main loop (cmds from pipe file)
 # ----------------------------------------------------------------------------------------
 
 def sigHandler(signum, frame):
-	sys.stderr.write(f'Singal {signum} received')
+	sys.stderr.write(f'Singal {signum} received\n')
 	sys.exit(0)
 
 def removePidFile():
@@ -255,12 +255,21 @@ def runBot(log):
 			
 		else:
 
-			emaSlow.insertNewValue(cLastPrice)
-			emaFast.insertNewValue(cLastPrice)
+# TODO: getting wrong element price ... (if it is a new node, cLastPrice must be the previous)
+
+			calculatedSlowEMA = emaSlow.insertNewValue(cLastPrice)
+			calculatedFastEMA = emaFast.insertNewValue(cLastPrice)
 
 			cLastTimeId = nextSrvIdTime + 1
 
-			log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Closed candle! Value: [{cLastPrice}] | Time Id: [{cLastTimeId}] | Slow EMA: [{emaSlow.getCurrent()}] | Fast EMA: [{emaFast.getCurrent()}]\n')
+			log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Closed candle! Value: [{cLastPrice}] | Time Id: [{cLastTimeId}] | Slow EMA: [{calculatedSlowEMA}] | Fast EMA: [{calculatedFastEMA}]\n')
+
+			if calculatedSlowEMA < calculatedFastEMA:
+				log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'S<F BUY\n')
+			elif calculatedSlowEMA > calculatedFastEMA:
+				log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'S>F SELL\n')
+			else:
+				log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'S=F\n')
 
 		log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Sleeping {botIteracSleepMin} minutes...\n')
 		log.flush()
