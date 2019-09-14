@@ -293,7 +293,9 @@ def main(argv):
 	cfg.set('log_file', f"{argv[2]}_log.text")
 	cfg.set('binance_pair', argv[3])
 	cfg.set('fast_ema', int(argv[4]))
-	cfg.set('slow_ema', int(argv[5]))
+	cfg.set('fast_ema_offset', int(argv[5]))
+	cfg.set('slow_ema', int(argv[6]))
+	cfg.set('slow_ema_offset', int(argv[7]))
 
 	klineAPIIntervals = {
 		'1m'  : Client.KLINE_INTERVAL_1MINUTE,
@@ -314,7 +316,7 @@ def main(argv):
 	}
 
 	try:
-		cfg.set('time_sample', klineAPIIntervals[argv[6]])
+		cfg.set('time_sample', klineAPIIntervals[argv[8]])
 
 	except KeyError as e:
 		print(f'Error: time sample {argv[6]} not defined. Use one of: ')
@@ -346,7 +348,8 @@ def main(argv):
 	logging.info(f"\tCMD pipe = [{cfg.get('cmd_pipe_file_path')}]")
 	logging.info(f"\tWorking path = [{cfg.get('work_path')}]")
 	logging.info(f"\tBinance pair = [{cfg.get('binance_pair')}]")
-	logging.info(f"\tEMA Slow/Fast = [{cfg.get('slow.ema')} / {cfg.get('fast_ema')}]")
+	logging.info(f"\tEMA Slow/Fast = [{cfg.get('slow_ema')} / {cfg.get('fast_ema')}]")
+	logging.info(f"\tEMA Slow/Fast Offset = [{cfg.get('slow_ema_offset')} / {cfg.get('fast_ema_offset')}]")
 	logging.info(f"\tTime sample = [{cfg.get('time_sample')}]")
 	logging.info(f"\tBinance API key = [{cfg.get('binance_apikey')}]\n")
 
@@ -376,8 +379,8 @@ def main(argv):
 
 if __name__ == '__main__':
 
-	if len(sys.argv) != 7:
-		print(f"Usage:\n\t{sys.argv[0]} <BOT_ID> <WORK_PATH> <BINANCE_PAIR> <FAST_EMA> <SLOW_EMA> <TIME_SAMPLE>\nSample:\n\t{sys.argv[0]} ./ BOT1 BNBBTC\n")
+	if len(sys.argv) != 9:
+		print(f"Usage:\n\t{sys.argv[0]} <WORK_PATH> <BOT_ID> <BINANCE_PAIR> <FAST_EMA> <OFFSET_FAST_EMA> <SLOW_EMA> <OFFSET_SLOW_EMA> <TIME_SAMPLE>\nSample:\n\t{sys.argv[0]} ./ BOT1 BNBBTC 9 0 21 +4 30m\n")
 		print("Where <TIME_SAMPLE>:"
 			+ "\t1m = 1MINUTE\n"
 			+ "\t3m = 3MINUTE\n"
