@@ -11,6 +11,7 @@ import atexit
 import time
 import errno
 import signal
+import logging
 
 from binance.client import Client
 from binance.exceptions import BinanceAPIException, BinanceWithdrawException, BinanceRequestException
@@ -92,7 +93,7 @@ class ema:
 		ret = ((new - self.__seed) * self.__k) + self.__seed
 		return(ret)
 
-def runBot(log):
+def runBot():
 	global cfg
 	global runningBot
 
@@ -100,21 +101,21 @@ def runBot(log):
 
 	pair = cfg.get('binance_pair')
 
-	log.write(time.strftime("%d/%m/%Y %H:%M:%S", time.localtime()) + "--- Wallet status ---\n")
+	logging.info("--- Wallet status ---\n")
 
 	try:
 		client = Client(cfg.get('binance_apikey'), cfg.get('binance_sekkey'), {"verify": True, "timeout": 20})
 
 	except BinanceAPIException as e:
-		log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Binance API exception: {e.status_code} - {e.message}\n')
+		logging.info(f'Binance API exception: {e.status_code} - {e.message}')
 		return 1
 
 	except BinanceRequestException as e:
-		log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Binance request exception: {e.status_code} - {e.message}\n')
+		logging.info(f'Binance request exception: {e.status_code} - {e.message}')
 		return 2
 
 	except BinanceWithdrawException as e:
-		log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Binance withdraw exception: {e.status_code} - {e.message}\n')
+		logging.info(f'Binance withdraw exception: {e.status_code} - {e.message}')
 		return 3
 
 	# Exchange status
@@ -124,25 +125,25 @@ def runBot(log):
 
 	# 1 Pair wallet
 	pair1 = client.get_asset_balance(pair[:3])
-	log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Symbol 1 on wallet: ['
-		+ pair[:3] + ']\tFree: [' + pair1['free'] + ']\tLocked: [' + pair1['locked'] + ']\n')
+	logging.info(f'Symbol 1 on wallet: ['
+		+ pair[:3] + ']\tFree: [' + pair1['free'] + ']\tLocked: [' + pair1['locked'] + ']')
 
 	# 2 Pair wallet
 	pair2 = client.get_asset_balance(pair[3:])
-	log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Symbol 2 on wallet: ['
-		+ pair[3:] + ']\tFree: [' + pair2['free'] + ']\tLocked: [' + pair2['locked'] + ']\n')
+	logging.info(f'Symbol 2 on wallet: ['
+		+ pair[3:] + ']\tFree: [' + pair2['free'] + ']\tLocked: [' + pair2['locked'] + ']')
 
 	# Open orders
 	openOrders = client.get_open_orders(symbol=pair)
 	for openOrder in openOrders:
-		log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Order id [' + str(openOrder['orderId']) + '] data:\n' 
+		logging.info(f'Order id [' + str(openOrder['orderId']) + '] data:\n' 
 			+ '\tPrice.......: [' + openOrder['price']          + ']\n'
 			+ '\tQtd.........: [' + openOrder['origQty']        + ']\n'
 			+ '\tQtd executed: [' + openOrder['executedQty']    + ']\n'
 			+ '\tSide........: [' + openOrder['side']           + ']\n'
 			+ '\tType........: [' + openOrder['type']           + ']\n'
 			+ '\tStop price..: [' + openOrder['stopPrice']      + ']\n'
-			+ '\tIs working..: [' + str(openOrder['isWorking']) + ']\n')
+			+ '\tIs working..: [' + str(openOrder['isWorking']) + ']')
 
 	del pair1
 	del pair2
@@ -151,7 +152,7 @@ def runBot(log):
 
 # ---------
 
-	log.write(time.strftime("%d/%m/%Y %H:%M:%S", time.localtime()) + "--- Loading data ---\n")
+	logging.info("\n--- Loading data ---")
 
 	lastPrices = []
 
@@ -163,15 +164,15 @@ def runBot(log):
 		closedPrices = client.get_klines(symbol=pair, interval=cfg.get('time_sample'))[-slow_emaAux-1:-1]
 
 	except BinanceAPIException as e:
-	   log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Binance API exception: {e.status_code} - {e.message}\n')
+	   logging.info('Binance API exception: {e.status_code} - {e.message}')
 	   return 1
 
 	except BinanceRequestException as e:
-	   log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Binance request exception: {e.status_code} - {e.message}\n')
+	   logging.info('Binance request exception: {e.status_code} - {e.message}')
 	   return 2
 
 	except BinanceWithdrawException as e:
-	   log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Binance withdraw exception: {e.status_code} - {e.message}\n')
+	   logging.info('Binance withdraw exception: {e.status_code} - {e.message}')
 	   return 3
 
 	for i in range(0, slow_emaAux):
@@ -187,7 +188,7 @@ def runBot(log):
 	#print("Prices len:")
 	#print(len(lastPrices))
 
-	log.write(time.strftime("%d/%m/%Y %H:%M:%S", time.localtime()) + f'Last completed candle time: {nextSrvIdTime}')
+	logging.info(f'Last completed candle time: {nextSrvIdTime}')
 
 	emaSlow = ema(slow_emaAux, lastPrices)
 	emaFast = ema(fast_emaAux, lastPrices[len(lastPrices) - fast_emaAux:])
@@ -199,29 +200,29 @@ def runBot(log):
 	del slow_emaAux
 	del fast_emaAux
 
-	log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Initial slow EMA {emaSlow.getCurrent()} | Initial fast EMA {emaFast.getCurrent()}')
+	logging.info(f'Initial slow EMA {emaSlow.getCurrent()} | Initial fast EMA {emaFast.getCurrent()}')
 
 # ---------
 
-	log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + "--- Stating ---\n")
+	logging.info("\n--- Stating ---")
 
 	# Pair price
 	try:
 		getPrice = client.get_symbol_ticker(symbol=cfg.get('binance_pair'))
 
 	except BinanceAPIException as e:
-		log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Binance API exception: {e.status_code} - {e.message}\n')
+		logging.info(f'Binance API exception: {e.status_code} - {e.message}')
 		return 1
 
 	except BinanceRequestException as e:
-		log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Binance request exception: {e.status_code} - {e.message}\n')
+		logging.info(f'Binance request exception: {e.status_code} - {e.message}')
 		return 2
 
 	except BinanceWithdrawException as e:
-		log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Binance withdraw exception: {e.status_code} - {e.message}\n')
+		logging.info(f'Binance withdraw exception: {e.status_code} - {e.message}')
 		return 3
 
-	log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Symbol: [' + getPrice['symbol'] + '] Price: [' + getPrice['price'] + ']\n')
+	logging.info(f'Symbol: [' + getPrice['symbol'] + '] Price: [' + getPrice['price'] + ']')
 
 	botIteracSleepMin = 1.5
 
@@ -233,15 +234,15 @@ def runBot(log):
 			clast = client.get_klines(symbol=pair, interval=cfg.get('time_sample'))[-1:][0]
 
 		except BinanceAPIException as e:
-			log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Binance API exception: {e.status_code} - {e.message}\n')
+			logging.info(f'Binance API exception: {e.status_code} - {e.message}')
 			return 1
 
 		except BinanceRequestException as e:
-			log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Binance request exception: {e.status_code} - {e.message}\n')
+			logging.info(f'Binance request exception: {e.status_code} - {e.message}')
 			return 2
 
 		except BinanceWithdrawException as e:
-			log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Binance withdraw exception: {e.status_code} - {e.message}\n')
+			logging.info(f'Binance withdraw exception: {e.status_code} - {e.message}')
 			return 3
 
 		cLastTimeId = clast[0]
@@ -251,7 +252,7 @@ def runBot(log):
 
 			# Just a forecast for the current (not closed) candle
 
-			log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Current value: [{cLastPrice}] | Current time Id: [{cLastTimeId}] | Slow EMA prediction: [{emaSlow.forecastValue(cLastPrice)}] | Fast EMA prediction: [{emaFast.forecastValue(cLastPrice)}]\n')
+			logging.info(f'Current value: [{cLastPrice}] | Current time Id: [{cLastTimeId}] | Slow EMA prediction: [{emaSlow.forecastValue(cLastPrice)}] | Fast EMA prediction: [{emaFast.forecastValue(cLastPrice)}]')
 			
 		else:
 
@@ -262,17 +263,16 @@ def runBot(log):
 
 			cLastTimeId = nextSrvIdTime + 1
 
-			log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Closed candle! Value: [{cLastPrice}] | Time Id: [{cLastTimeId}] | Slow EMA: [{calculatedSlowEMA}] | Fast EMA: [{calculatedFastEMA}]\n')
+			logging.info(f'Closed candle! Value: [{cLastPrice}] | Time Id: [{cLastTimeId}] | Slow EMA: [{calculatedSlowEMA}] | Fast EMA: [{calculatedFastEMA}]')
 
 			if calculatedSlowEMA < calculatedFastEMA:
-				log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'S<F BUY\n')
+				logging.info('S<F BUY')
 			elif calculatedSlowEMA > calculatedFastEMA:
-				log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'S>F SELL\n')
+				logging.info('S>F SELL')
 			else:
-				log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'S=F\n')
+				logging.info('S=F')
 
-		log.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f'Sleeping {botIteracSleepMin} minutes...\n')
-		log.flush()
+		logging.info(f'Sleeping {botIteracSleepMin} minutes...\n')
 		time.sleep(botIteracSleepMin * 60)
 
 	return 0
@@ -332,28 +332,29 @@ def main(argv):
 	signal.signal(signal.SIGTERM, sigHandler)
 	signal.signal(signal.SIGSEGV, sigHandler)
 
-	try:
-		logFile = open(cfg.get('log_file'), 'a')
+#	try:
+#		logFile = open(cfg.get('log_file'), 'a')
+	logging.basicConfig(filename=cfg.get('log_file'), filemode='a', level=logging.NOTSET, format='%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y%m%d%H%M%S')
 
-	except IOError:
-		sys.stderr.write(f"Creating log file failed: {e.errno} - {e.strerror}\n")
-		sys.exit(1)
+#	except IOError:
+#		sys.stderr.write(f"Creating log file failed: {e.errno} - {e.strerror}\n")
+#		sys.exit(1)
 
-	logFile.write(f"\n================================================================\nConfiguration:\n")
-	logFile.write(f"\tPID = [{cfg.get('pid')}]\n")
-	logFile.write(f"\tPID file = [{cfg.get('pid_file_path')}]\n")
-	logFile.write(f"\tCMD pipe = [{cfg.get('cmd_pipe_file_path')}]\n")
-	logFile.write(f"\tWorking path = [{cfg.get('work_path')}]\n")
-	logFile.write(f"\tBinance pair = [{cfg.get('binance_pair')}]\n")
-	logFile.write(f"\tEMA Slow/Fast = [{cfg.get('slow.ema')} / {cfg.get('fast_ema')}]\n")
-	logFile.write(f"\tTime sample = [{cfg.get('time_sample')}]\n")
-	logFile.write(f"\tBinance API key = [{cfg.get('binance_apikey')}]\n\n")
+	logging.info(f"\n================================================================\nConfiguration:")
+	logging.info(f"\tPID = [{cfg.get('pid')}]")
+	logging.info(f"\tPID file = [{cfg.get('pid_file_path')}]")
+	logging.info(f"\tCMD pipe = [{cfg.get('cmd_pipe_file_path')}]")
+	logging.info(f"\tWorking path = [{cfg.get('work_path')}]")
+	logging.info(f"\tBinance pair = [{cfg.get('binance_pair')}]")
+	logging.info(f"\tEMA Slow/Fast = [{cfg.get('slow.ema')} / {cfg.get('fast_ema')}]")
+	logging.info(f"\tTime sample = [{cfg.get('time_sample')}]")
+	logging.info(f"\tBinance API key = [{cfg.get('binance_apikey')}]\n")
 
 	try:
 		os.mkfifo(cfg.get('cmd_pipe_file_path'))
 
 	except OSError as e: 
-		logFile.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f"Erro creating cmd pipe file: {e.errno} - {e.strerror}\n")
+		logging.info(f"Erro creating cmd pipe file: {e.errno} - {e.strerror}")
 		sys.exit(1)
 
 #	try:
@@ -364,9 +365,9 @@ def main(argv):
 # 		sys.exit(1)
 
 #	ret = runBot(logFile, BINANCE_PAIR, binance_apiKey, binance_sekKey)
-	ret = runBot(logFile)
+	ret = runBot()
 
-	logFile.write(time.strftime("%d/%m/%Y %H:%M:%S ", time.localtime()) + f"BOT return: [{ret}]\n")
+	logging.info(f"BOT return: [{ret}]")
 
 #	CMD_PIPE_FILE.close()
 	logFile.close()
