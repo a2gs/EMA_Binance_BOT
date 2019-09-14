@@ -164,16 +164,16 @@ def runBot():
 		closedPrices = client.get_klines(symbol=pair, interval=cfg.get('time_sample'))[-slow_emaAux-1:-1]
 
 	except BinanceAPIException as e:
-	   logging.info('Binance API exception: {e.status_code} - {e.message}')
-	   return 1
+		logging.info(f'Binance API exception: {e.status_code} - {e.message}')
+		return 1
 
 	except BinanceRequestException as e:
-	   logging.info('Binance request exception: {e.status_code} - {e.message}')
-	   return 2
+		logging.info(f'Binance request exception: {e.status_code} - {e.message}')
+		return 2
 
 	except BinanceWithdrawException as e:
-	   logging.info('Binance withdraw exception: {e.status_code} - {e.message}')
-	   return 3
+		logging.info(f'Binance withdraw exception: {e.status_code} - {e.message}')
+		return 3
 
 	for i in range(0, slow_emaAux):
 		lastPrices.append(float(closedPrices[i][4]))
