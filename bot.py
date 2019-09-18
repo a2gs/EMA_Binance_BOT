@@ -98,6 +98,7 @@ def runBot():
 	global runningBot
 
 	nextSrvIdTime = 0
+	srvIdTime     = 0
 
 	pair = cfg.get('binance_pair')
 
@@ -188,12 +189,14 @@ def runBot():
 	#print("Prices len:")
 	#print(len(lastPrices))
 
-	logging.info(f'Last completed candle time: {nextSrvIdTime}')
-
 	emaSlow = ema(slow_emaAux, lastPrices)
 	emaFast = ema(fast_emaAux, lastPrices[len(lastPrices) - fast_emaAux:])
 
 	nextSrvIdTime = closedPrices[-1:][0][0] + 1
+	srvIdTime = cllient.get_server_time()
+
+	logging.info(f'Last completed candle time: {nextSrvIdTime}')
+	logging.info(f'Current server (Binance) time: {srvIdTime}')
 
 	del lastPrices
 	del closedPrices
