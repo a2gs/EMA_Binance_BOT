@@ -12,6 +12,13 @@ from binance.exceptions import BinanceAPIException, BinanceWithdrawException, Bi
 try:
 	client = Client(os.getenv('BINANCE_APIKEY', 'NOTDEF_APIKEY'), os.getenv('BINANCE_SEKKEY', 'NOTDEF_APIKEY'), {"verify": True, "timeout": 20})
 
+	closedPrices = client.get_klines(symbol='BNBBTC', interval='1h')[-25-1:]
+
+	for i in closedPrices:
+		print(i)
+
+	print(client.get_server_time())
+
 except BinanceAPIException as e:
 	logging.info(f'Binance API exception: {e.status_code} - {e.message}')
 
