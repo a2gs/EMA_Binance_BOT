@@ -53,6 +53,8 @@ def cleanUp(pid_file_path, cmd_pipe_file_path):
 
 def sigHandler(signum, frame):
 	sys.stderr.write(f'Singal {signum} received\n')
+	logging.info(f'Singal {signum} received\n')
+	logging.shutdown()
 	sys.exit(0)
 
 auxPid_file_path = ''
