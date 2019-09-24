@@ -236,7 +236,7 @@ class bot(Exception):
 
 		# the last candle is running, so it will be descarded
 		try:
-			closedPrices = self.client.get_klines(symbol=self.cfg.get('binance_pair'), interval=self.cfg.get('time_sample'))[-slow_emaAux-1:]
+			closedPrices = self.client.get_klines(symbol=self.cfg.get('binance_pair'), interval=self.cfg.get('time_sample'))[-slow_emaAux-1:-1]
 
 		except BinanceAPIException as e:
 			logging.info(f'Binance API exception: {e.status_code} - {e.message}')
@@ -264,7 +264,7 @@ class bot(Exception):
 		#print(len(lastPrices))
 
 		self.emaSlow = ema(slow_emaAux, lastPrices)
-		self.emaFast = ema(fast_emaAux, lastPrices[len(lastPrices) - fast_emaAux:])
+		self.emaFast = ema(fast_emaAux, lastPrices[-fast_emaAux:])
 
 		self.nextSrvIdTime = closedPrices[-1:][0][0] + 1 # TODO ...
 		self.srvIdTime = self.client.get_server_time()
@@ -303,7 +303,7 @@ class bot(Exception):
 
 		logging.info(f'Symbol: [' + getPrice['symbol'] + '] Price: [' + getPrice['price'] + ']')
 
-		botIteracSleepMin = 1.5
+		botIteracSleepMin = 1
 
 		runningBot = True
 
