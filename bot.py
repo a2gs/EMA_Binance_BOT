@@ -89,8 +89,8 @@ def daemonize(work_path):
 # ----------------------------------------------------------------------------------------
 
 class ema:
-	__ema = 0.0
-	__k = 0
+	__ema  = 0.0
+	__k    = 0
 	__seed = 0.0
 
 	def __init__(self, ema, ema_initPopulation):	
@@ -116,11 +116,13 @@ class ema:
 
 class bot(Exception):
 
-	cfg = botCfg()
 	nextSrvIdTime = 0
 	srvIdTime     = 0
+	cfg           = object()
+	offset        = []
 
 	def __init__(self, pid, binance_apikey, binance_sekkey, work_path, pid_file_path, cmd_pipe_file_path, log_file, binance_pair, fast_ema, fast_ema_offset, slow_ema, slow_ema_offset, time_sample):
+		self.cfg = botCfg()
 
 		global auxPid_file_path
 		global auxCmd_pipe_file_path
@@ -167,10 +169,11 @@ class bot(Exception):
 		logging.info(f"\tTime sample = [{self.cfg.get('time_sample')}]")
 		logging.info(f"\tBinance API key = [{self.cfg.get('binance_apikey')}]\n")
 
-	def walletStatus(self):
-
 		self.nextSrvIdTime = 0
 		self.srvIdTime     = 0
+		self.offset        = []
+
+	def walletStatus(self):
 
 #pair = self.cfg.get('binance_pair')
 
