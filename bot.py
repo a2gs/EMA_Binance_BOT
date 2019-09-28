@@ -92,11 +92,15 @@ class ema:
 	__ema  = 0.0
 	__k    = 0
 	__seed = 0.0
+	__offset = []
+	__offsetValue = 0
 
-	def __init__(self, ema, ema_initPopulation):	
+	def __init__(self, ema, ema_initPopulation, offsetValue):
 		self.__k = 2 / (ema + 1)
 		self.__ema = ema
 		self.__seed = sum(ema_initPopulation) / ema
+		self.__offset = []
+		self.__offsetValue = offsetValue
 #		print('---')
 #		print(f'EMA: {self.__ema} seed: {self.__seed} len: ')
 #		print(len(ema_initPopulation))
@@ -119,7 +123,6 @@ class bot(Exception):
 	nextSrvIdTime = 0
 	srvIdTime     = 0
 	cfg           = object()
-	offset        = []
 
 	def __init__(self, pid, binance_apikey, binance_sekkey, work_path, pid_file_path, cmd_pipe_file_path, log_file, binance_pair, fast_ema, fast_ema_offset, slow_ema, slow_ema_offset, time_sample):
 		self.cfg = botCfg()
@@ -171,7 +174,6 @@ class bot(Exception):
 
 		self.nextSrvIdTime = 0
 		self.srvIdTime     = 0
-		self.offset        = []
 
 	def walletStatus(self):
 
@@ -266,8 +268,8 @@ class bot(Exception):
 		#print("Prices len:")
 		#print(len(lastPrices))
 
-		self.emaSlow = ema(slow_emaAux, lastPrices)
-		self.emaFast = ema(fast_emaAux, lastPrices[-fast_emaAux:])
+		self.emaSlow = ema(slow_emaAux, lastPrices, self.cfg.get('slow_ema_offset'))
+		self.emaFast = ema(fast_emaAux, lastPrices[-fast_emaAux:], self.cfg.get('fast_ema_offset'))
 
 		self.nextSrvIdTime = closedPrices[-1:][0][0] + 1 # TODO ...
 		self.srvIdTime = self.client.get_server_time()
