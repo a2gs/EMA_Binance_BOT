@@ -321,8 +321,14 @@ class bot(Exception):
 		botIteracSleepMin = 1
 
 		runningBot = True
+		candleCountDown = int(self.cfg.get('time_sample')) #ERROR: character...
 
 		while runningBot:
+
+			if candleCountDown == 0: # TODO: change this using cLastTimeId and currentTimeId
+				self.closeCandles()
+			else:
+				candleCountDown = candleCountDown - 1
 
 			try:
 				clast = self.client.get_klines(symbol=self.cfg.get('binance_pair'), interval=self.cfg.get('time_sample'))[-1:][0]
@@ -370,6 +376,9 @@ class bot(Exception):
 			time.sleep(botIteracSleepMin * 60)
 
 		return 0
+
+	def closeCandles(self):
+		pass
 
 # ----------------------------------------------------------------------------------------
 
