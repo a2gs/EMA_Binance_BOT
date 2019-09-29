@@ -238,10 +238,13 @@ class bot(Exception):
 
 		slow_emaAux = self.cfg.get('slow_ema')
 		fast_emaAux = self.cfg.get('fast_ema')
-		if self.cfg.get('slow_ema_offset') < self.cfg.get('fast_ema_offset'):
-			biggest_offset = self.cfg.get('fast_ema_offset')
+		slow_offset = self.cfg.get('slow_ema_offset')
+		fast_offset = self.cfg.get('fast_ema_offset')
+		
+		if slow_offset < fast_offset:
+			biggest_offset = fast_offset
 		else:
-			biggest_offset = self.cfg.get('slow_ema_offset')
+			biggest_offset = slow_offset
 
 		# the last candle is running, so it will be descarded
 		try:
@@ -272,8 +275,8 @@ class bot(Exception):
 		print("Prices len:")
 		print(len(lastPrices))
 
-		self.emaSlow = ema(slow_emaAux, lastPrices, self.cfg.get('slow_ema_offset'))
-		self.emaFast = ema(fast_emaAux, lastPrices[-fast_emaAux:], self.cfg.get('fast_ema_offset'))
+		self.emaSlow = ema(slow_emaAux, lastPrices, slow_offset)
+		self.emaFast = ema(fast_emaAux, lastPrices[-fast_emaAux:], fast_offset)
 
 		self.nextSrvIdTime = closedPrices[-1:][0][0] + 1 # TODO ...
 		self.srvIdTime = self.client.get_server_time()
@@ -285,6 +288,8 @@ class bot(Exception):
 		del closedPrices
 		del slow_emaAux
 		del fast_emaAux
+		del slow_offset
+		del fast_offset
 		del biggest_offset
 
 		logging.info(f'Initial slow EMA {self.emaSlow.getCurrent()} | Initial fast EMA {self.emaFast.getCurrent()}')
