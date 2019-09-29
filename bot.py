@@ -238,10 +238,14 @@ class bot(Exception):
 
 		slow_emaAux = self.cfg.get('slow_ema')
 		fast_emaAux = self.cfg.get('fast_ema')
+		if self.cfg.get('slow_ema_offset') < self.cfg.get('fast_ema_offset'):
+			biggest_offset = self.cfg.get('fast_ema_offset')
+		else:
+			biggest_offset = self.cfg.get('slow_ema_offset')
 
 		# the last candle is running, so it will be descarded
 		try:
-			closedPrices = self.client.get_klines(symbol=self.cfg.get('binance_pair'), interval=self.cfg.get('time_sample'))[-slow_emaAux-1:-1]
+			closedPrices = self.client.get_klines(symbol=self.cfg.get('binance_pair'), interval=self.cfg.get('time_sample'))[-(slow_emaAux + biggest_offset)-1:-1]
 
 		except BinanceAPIException as e:
 			logging.info(f'Binance API exception: {e.status_code} - {e.message}')
@@ -258,15 +262,15 @@ class bot(Exception):
 		for i in range(0, slow_emaAux):
 			lastPrices.append(float(closedPrices[i][4]))
 
-		#print('return closedPrices:')
-		#print(closedPrices)
-		#print(len(closedPrices))
-		#print('---')
+		print('return closedPrices:')
+		print(closedPrices)
+		print(len(closedPrices))
+		print('---')
 
-		#print("Prices:")
-		#print(lastPrices)
-		#print("Prices len:")
-		#print(len(lastPrices))
+		print("Prices:")
+		print(lastPrices)
+		print("Prices len:")
+		print(len(lastPrices))
 
 		self.emaSlow = ema(slow_emaAux, lastPrices, self.cfg.get('slow_ema_offset'))
 		self.emaFast = ema(fast_emaAux, lastPrices[-fast_emaAux:], self.cfg.get('fast_ema_offset'))
@@ -281,6 +285,7 @@ class bot(Exception):
 		del closedPrices
 		del slow_emaAux
 		del fast_emaAux
+		del biggest_offset
 
 		logging.info(f'Initial slow EMA {self.emaSlow.getCurrent()} | Initial fast EMA {self.emaFast.getCurrent()}')
 
