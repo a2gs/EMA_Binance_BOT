@@ -343,7 +343,7 @@ class bot(Exception):
 
 		logging.info(f'Symbol: [' + getPrice['symbol'] + '] Price: [' + getPrice['price'] + ']')
 
-		botIteracSleepMin = 0.47 * 60
+		botIteracSleepMin = 0.47 * 60 # Nyquist frequency for 1min
 
 		self.runningBot = True
 		self.calculatedSlowEMA = 0.0
