@@ -89,16 +89,17 @@ def daemonize(work_path):
 # ----------------------------------------------------------------------------------------
 
 class ema:
-	__ema  = 0.0
-	__k    = 0
-	__seed = 0.0
-	__offset = []
+	__emaValue    = 0
+	__ema         = 0.0
+	__k           = 0
+	__seed        = 0.0
+	__offset      = []
 	__offsetValue = 0
 
-	def __init__(self, ema, ema_initPopulation, offsetValue):
+	def __init__(self, emaValue, ema_initPopulation, offsetValue):
 		self.__k = 2 / (ema + 1)
-		self.__ema = ema
-		self.__seed = sum(ema_initPopulation) / ema
+		self.__emaValue = emaValue
+		self.__ema = sum(ema_initPopulation) / ema
 		self.__offset = []
 		self.__offsetValue = offsetValue
 #		print('---')
@@ -107,22 +108,26 @@ class ema:
 #		print(ema_initPopulation)
 
 	def getCurrent(self):
-		return(self.__seed)
+		return(self.__ema)
 
 	def insertNewValue(self, new):
-		ret = ((new - self.__seed) * self.__k) + self.__seed
-		self.__seed = ret
+		ret = ((new - self.__ema) * self.__k) + self.__ema
+		self.__ema = ret
 		return(ret)
 
 	def forecastValue(self, new):
-		ret = ((new - self.__seed) * self.__k) + self.__seed
+		ret = ((new - self.__ema) * self.__k) + self.__ema
 		return(ret)
 
 class bot(Exception):
 
-	nextSrvIdTime = 0
-	srvIdTime     = 0
-	cfg           = object()
+#	nextSrvIdTime = 0
+#	srvIdTime     = 0
+	savedLastCandleTimeId = int(0)
+	calculatedSlowEMA     = float(0.0)
+	calculatedFastEMA     = float(0.0)
+	runningBot            = True
+	cfg                   = object()
 
 	def __init__(self, pid, binance_apikey, binance_sekkey, work_path, pid_file_path, cmd_pipe_file_path, log_file, binance_pair, fast_ema, fast_ema_offset, slow_ema, slow_ema_offset, time_sample):
 		self.cfg = botCfg()
@@ -172,12 +177,14 @@ class bot(Exception):
 		logging.info(f"\tTime sample = [{self.cfg.get('time_sample')}]")
 		logging.info(f"\tBinance API key = [{self.cfg.get('binance_apikey')}]\n")
 
-		self.nextSrvIdTime = 0
-		self.srvIdTime     = 0
+		self.savedLastCandleTimeId = 0
+		self.calculatedSlowEMA     = 0.0
+		self.calculatedFastEMA     = 0.0
+		self.runningBot            = True
 
 	def walletStatus(self):
 
-#pair = self.cfg.get('binance_pair')
+		pair = self.cfg.get('binance_pair')
 
 		logging.info("--- Wallet status ---")
 
@@ -195,6 +202,8 @@ class bot(Exception):
 		except BinanceWithdrawException as e:
 			logging.info(f'Binance withdraw exception: {e.status_code} - {e.message}')
 			return 3
+	
+		# TODO: call 'del' below with 'finally:' exception control (there are more places like this)
 
 		# Exchange status
 		if self.client.get_system_status()['status'] != 0:
@@ -202,17 +211,15 @@ class bot(Exception):
 			return 1
 
 		# 1 Pair wallet
-		pair1 = self.client.get_asset_balance(self.cfg.get('binance_pair')[:3])
-		logging.info(f'Symbol 1 on wallet: ['
-			+ self.cfg.get('binance_pair')[:3] + ']\tFree: [' + pair1['free'] + ']\tLocked: [' + pair1['locked'] + ']')
+		pair1 = self.client.get_asset_balance(pair[:3])
+		logging.info(f'Symbol 1 on wallet: [' + pair[:3] + ']\tFree: [' + pair1['free'] + ']\tLocked: [' + pair1['locked'] + ']')
 
 		# 2 Pair wallet
-		pair2 = self.client.get_asset_balance(self.cfg.get('binance_pair')[3:])
-		logging.info(f'Symbol 2 on wallet: ['
-			+ self.cfg.get('binance_pair')[3:] + ']\tFree: [' + pair2['free'] + ']\tLocked: [' + pair2['locked'] + ']')
+		pair2 = self.client.get_asset_balance(pair[3:])
+		logging.info(f'Symbol 2 on wallet: [' + pair[3:] + ']\tFree: [' + pair2['free'] + ']\tLocked: [' + pair2['locked'] + ']')
 
 		# Open orders
-		openOrders = self.client.get_open_orders(symbol=self.cfg.get('binance_pair'))
+		openOrders = self.client.get_open_orders(symbol=pair)
 		for openOrder in openOrders:
 			logging.info(f'Order id [' + str(openOrder['orderId']) + '] data:\n' 
 				+ '\tPrice.......: [' + openOrder['price']          + ']\n'
@@ -223,6 +230,7 @@ class bot(Exception):
 				+ '\tStop price..: [' + openOrder['stopPrice']      + ']\n'
 				+ '\tIs working..: [' + str(openOrder['isWorking']) + ']')
 
+		del pair
 		del pair1
 		del pair2
 		del openOrder
@@ -247,6 +255,22 @@ class bot(Exception):
 			biggest_offset = slow_offset
 
 		# the last candle is running, so it will be descarded
+		'''
+		[
+			1499040000000,      # [ 0]Open time
+			"0.01634790",       # [ 1]Open
+			"0.80000000",       # [ 2]High
+			"0.01575800",       # [ 3]Low
+			"0.01577100",       # [ 4]Close
+			"148976.11427815",  # [ 5]Volume
+			1499644799999,      # [ 6]Close time
+			"2434.19055334",    # [ 7]Quote asset volume
+			308,                # [ 8]Number of trades
+			"1756.87402397",    # [ 9]Taker buy base asset volume
+			"28.46694368",      # [10]Taker buy quote asset volume
+			"17928899.62484339" # [11]Can be ignored
+		]
+    '''
 		try:
 			closedPrices = self.client.get_klines(symbol=self.cfg.get('binance_pair'), interval=self.cfg.get('time_sample'))[-(slow_emaAux + biggest_offset)-1:-1]
 
@@ -278,11 +302,12 @@ class bot(Exception):
 		self.emaSlow = ema(slow_emaAux, lastPrices, slow_offset)
 		self.emaFast = ema(fast_emaAux, lastPrices[-fast_emaAux:], fast_offset)
 
-		self.nextSrvIdTime = closedPrices[-1:][0][0] + 1 # TODO ...
-		self.srvIdTime = self.client.get_server_time()
+		#self.lastCandleSrvIdTime = closedPrices[-1:][0][0]
+		#self.srvIdTime = self.client.get_server_time()
+		self.savedLastCandleTimeId = int(closedPrices[-2:][0][6])
 
-		logging.info(f'Last completed candle time: {self.nextSrvIdTime}')
-		logging.info(f'Current server (Binance) time: {self.srvIdTime}')
+		logging.info(f'Last CLOSED candle time: {self.savedLastCandleTimeId}')
+		#logging.info(f'Current server (Binance) time: {self.srvIdTime}')
 
 		del lastPrices
 		del closedPrices
@@ -318,17 +343,13 @@ class bot(Exception):
 
 		logging.info(f'Symbol: [' + getPrice['symbol'] + '] Price: [' + getPrice['price'] + ']')
 
-		botIteracSleepMin = 1
+		botIteracSleepMin = 0.47 * 60
 
-		runningBot = True
-		candleCountDown = int(self.cfg.get('time_sample')) #ERROR: character...
+		self.runningBot = True
+		self.calculatedSlowEMA = 0.0
+		self.calculatedFastEMA = 0.0
 
 		while runningBot:
-
-			if candleCountDown == 0: # TODO: change this using cLastTimeId and currentTimeId
-				self.closeCandles()
-			else:
-				candleCountDown = candleCountDown - 1
 
 			try:
 				clast = self.client.get_klines(symbol=self.cfg.get('binance_pair'), interval=self.cfg.get('time_sample'))[-1:][0]
@@ -345,52 +366,45 @@ class bot(Exception):
 				logging.info(f'Binance withdraw exception: {e.status_code} - {e.message}')
 				return 3
 
-			cLastTimeId = clast[0]
-			cLastPrice  = float(clast[4])
+			currentRunningCandleTimeId = int(clast[6])
+			currentRunningPrice = float(clast[4])
 
-			if cLastTimeId == self.nextSrvIdTime:
+			logging.info(f'Value: [{currentRunningPrice}] | Time Id: [{currentRunningCandleTimeId}] | Last closed candle time id: [{self.savedLastCandleTimeId}]')
 
-				# Just a forecast for the current (not closed) candle
+			if currentRunningCandleTimeId > self.savedLastCandleTimeId:
+				# (enter here at first bot iteration)
+				logging.info('CANDLE CLOSED (timeslice): Updating EMAs and Candle time ID:')
 
-				logging.info(f'Current value: [{cLastPrice}] | Current time Id: [{cLastTimeId}] | Slow EMA prediction: [{self.emaSlow.forecastValue(cLastPrice)}] | Fast EMA prediction: [{self.emaFast.forecastValue(cLastPrice)}]')
-			
+				self.savedLastCandleTimeId = currentRunningCandleTimeId
+
+				self.calculatedSlowEMA = self.emaSlow.insertNewValue(currentRunningPrice)
+				self.calculatedFastEMA = self.emaFast.insertNewValue(currentRunningPrice)
+
 			else:
+				# Candle not closed, just a forecast
+				logging.info('Forecast EMA values:')
+				self.calculatedSlowEMA = self.emaSlow.forecastValue(currentRunningPrice)
+				self.calculatedFastEMA = self.emaSlow.forecastValue(currentRunningPrice)
 
-# TODO: getting wrong element price ... (if it is a new node, cLastPrice must be the previous)
+			logging.info(f'Slow EMA: [{self.calculatedSlowEMA}] | Fast EMA: [{self.calculatedFastEMA}]')
 
-				calculatedSlowEMA = self.emaSlow.insertNewValue(cLastPrice)
-				calculatedFastEMA = self.emaFast.insertNewValue(cLastPrice)
-
-				cLastTimeId = self.nextSrvIdTime + 1
-
-				logging.info(f'Closed candle! Value: [{cLastPrice}] | Time Id: [{cLastTimeId}] | Slow EMA: [{calculatedSlowEMA}] | Fast EMA: [{calculatedFastEMA}]')
-
-				if calculatedSlowEMA < calculatedFastEMA:
-					logging.info('S<F BUY')
-				elif calculatedSlowEMA > calculatedFastEMA:
-					logging.info('S>F SELL')
-				else:
-					logging.info('S=F')
+			if self.calculatedSlowEMA < self.calculatedFastEMA:
+				logging.info('S<F [[BUY]]')
+			elif self.calculatedSlowEMA > self.calculatedFastEMA:
+				logging.info('S>F [[SELL]]')
+			else:
+				logging.info('S=F [[HOLD ON]]')
 
 			logging.info(f'Sleeping {botIteracSleepMin} minutes...\n')
-			time.sleep(botIteracSleepMin * 60)
+			time.sleep(botIteracSleepMin)
 
 		return 0
 
-	def closeCandles(self):
-		pass
 
 # ----------------------------------------------------------------------------------------
 
 def main(argv):
 	ret = 0
-#	pid = 0
-#	work_path = ''
-#	log_file = ''
-#	cmd_pipe_file_path = ''
-#	binance_pair = ''
-#	binance_apikey = ''
-#binance_sekkey = ''
 
 	binance_apikey = os.getenv('BINANCE_APIKEY', 'NOTDEF_APIKEY')
 	binance_sekkey = os.getenv('BINANCE_SEKKEY', 'NOTDEF_APIKEY')
