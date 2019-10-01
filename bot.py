@@ -270,7 +270,8 @@ class bot(Exception):
 			"28.46694368",      # [10]Taker buy quote asset volume
 			"17928899.62484339" # [11]Can be ignored
 		]
-    '''
+		'''
+
 		try:
 			closedPrices = self.client.get_klines(symbol=self.cfg.get('binance_pair'), interval=self.cfg.get('time_sample'))[-(slow_emaAux + biggest_offset)-1:-1]
 
@@ -286,14 +287,12 @@ class bot(Exception):
 			logging.info(f'Binance withdraw exception: {e.status_code} - {e.message}')
 			return 3
 
-		for i in range(0, slow_emaAux):
-			lastPrices.append(float(closedPrices[i][4]))
+		[lastPrices.append(float(x[4])) for x in closedPrices)]
 
 		print('return closedPrices:')
 		print(closedPrices)
 		print(len(closedPrices))
 		print('---')
-
 		print("Prices:")
 		print(lastPrices)
 		print("Prices len:")
