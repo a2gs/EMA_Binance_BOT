@@ -97,19 +97,31 @@ class ema:
 	offsetValue = 0
 
 	def __init__(self, emaValue, ema_initPopulation, offsetValue):
+
+		if emaValue < len(ema_initPopulation):
+			return False
+
 		self.k = 2 / (ema + 1)
 		self.emaValue = emaValue
-		self.ema = sum(ema_initPopulation) / ema
-		self.offset = []
-		self.offsetValue = offsetValue
+
+		# First 'emaValue's are simple moving avarage
+		self.ema = sum(ema_initPopulation[:emaValue]) / emaValue
+
+		# Other values are EMA calculations
+		[self.insertNewValue(x) for x in ema_initPopulation[emaValue:]]
+
+		self.offset = [] #not yet implemented....
+		self.offsetValue = offsetValue #idem...
 
 	def getCurrent(self):
 		return(self.ema)
 
 	def insertNewValue(self, new):
-		ret = ((new - self.ema) * self.k) + self.ema
-		self.ema = ret
-		return(ret)
+		self.ema = ((new - self.ema) * self.k) + self.ema
+
+	def insertNewValueAndGetEMA(self, new):
+		self.insertNewValue(new)
+		return(self.getCurrent())
 
 	def forecastValue(self, new):
 		ret = ((new - self.ema) * self.k) + self.ema
@@ -367,8 +379,8 @@ class bot(Exception):
 
 				self.savedLastCandleTimeId = currentRunningCandleTimeId
 
-				self.calculatedSlowEMA = self.emaSlow.insertNewValue(currentRunningPrice)
-				self.calculatedFastEMA = self.emaFast.insertNewValue(currentRunningPrice)
+				self.calculatedSlowEMA = self.emaSlow.insertNewValueAndGetEMA(currentRunningPrice)
+				self.calculatedFastEMA = self.emaFast.insertNewValueAndGetEMA(currentRunningPrice)
 
 			else:
 				# Candle not closed, just a forecast
