@@ -89,40 +89,34 @@ def daemonize(work_path):
 # ----------------------------------------------------------------------------------------
 
 class ema:
-	__emaValue    = 0
-	__ema         = 0.0
-	__k           = 0
-	__seed        = 0.0
-	__offset      = []
-	__offsetValue = 0
+	emaValue    = 0
+	ema         = 0.0
+	k           = 0
+	seed        = 0.0
+	offset      = []
+	offsetValue = 0
 
 	def __init__(self, emaValue, ema_initPopulation, offsetValue):
-		self.__k = 2 / (ema + 1)
-		self.__emaValue = emaValue
-		self.__ema = sum(ema_initPopulation) / ema
-		self.__offset = []
-		self.__offsetValue = offsetValue
-#		print('---')
-#		print(f'EMA: {self.__ema} seed: {self.__seed} len: ')
-#		print(len(ema_initPopulation))
-#		print(ema_initPopulation)
+		self.k = 2 / (ema + 1)
+		self.emaValue = emaValue
+		self.ema = sum(ema_initPopulation) / ema
+		self.offset = []
+		self.offsetValue = offsetValue
 
 	def getCurrent(self):
-		return(self.__ema)
+		return(self.ema)
 
 	def insertNewValue(self, new):
-		ret = ((new - self.__ema) * self.__k) + self.__ema
-		self.__ema = ret
+		ret = ((new - self.ema) * self.k) + self.ema
+		self.ema = ret
 		return(ret)
 
 	def forecastValue(self, new):
-		ret = ((new - self.__ema) * self.__k) + self.__ema
+		ret = ((new - self.ema) * self.k) + self.ema
 		return(ret)
 
 class bot(Exception):
 
-#	nextSrvIdTime = 0
-#	srvIdTime     = 0
 	savedLastCandleTimeId = int(0)
 	calculatedSlowEMA     = float(0.0)
 	calculatedFastEMA     = float(0.0)
@@ -249,10 +243,10 @@ class bot(Exception):
 		slow_offset = self.cfg.get('slow_ema_offset')
 		fast_offset = self.cfg.get('fast_ema_offset')
 		
-		if slow_offset < fast_offset:
-			biggest_offset = fast_offset
-		else:
-			biggest_offset = slow_offset
+#		if slow_offset < fast_offset:
+#			biggest_offset = fast_offset
+#		else:
+#			biggest_offset = slow_offset
 
 		# the last candle is running, so it will be descarded
 		'''
@@ -273,7 +267,7 @@ class bot(Exception):
 		'''
 
 		try:
-			closedPrices = self.client.get_klines(symbol=self.cfg.get('binance_pair'), interval=self.cfg.get('time_sample'))[-(slow_emaAux + biggest_offset)-1:-1]
+			closedPrices = self.client.get_klines(symbol=self.cfg.get('binance_pair'), interval=self.cfg.get('time_sample'))[:-1]
 
 		except BinanceAPIException as e:
 			logging.info(f'Binance API exception: {e.status_code} - {e.message}')
@@ -299,14 +293,11 @@ class bot(Exception):
 		print(len(lastPrices))
 
 		self.emaSlow = ema(slow_emaAux, lastPrices, slow_offset)
-		self.emaFast = ema(fast_emaAux, lastPrices[-fast_emaAux:], fast_offset)
+		self.emaFast = ema(fast_emaAux, lastPrices, fast_offset)
 
-		#self.lastCandleSrvIdTime = closedPrices[-1:][0][0]
-		#self.srvIdTime = self.client.get_server_time()
 		self.savedLastCandleTimeId = int(closedPrices[-2:][0][6])
 
 		logging.info(f'Last CLOSED candle time: {self.savedLastCandleTimeId}')
-		#logging.info(f'Current server (Binance) time: {self.srvIdTime}')
 
 		del lastPrices
 		del closedPrices
@@ -314,7 +305,7 @@ class bot(Exception):
 		del fast_emaAux
 		del slow_offset
 		del fast_offset
-		del biggest_offset
+#		del biggest_offset
 
 		logging.info(f'Initial slow EMA {self.emaSlow.getCurrent()} | Initial fast EMA {self.emaFast.getCurrent()}')
 
