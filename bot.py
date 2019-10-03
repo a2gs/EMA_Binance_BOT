@@ -98,10 +98,11 @@ class ema:
 
 	def __init__(self, emaValue, ema_initPopulation, offsetValue):
 
-		if emaValue < len(ema_initPopulation):
-			return False
+# TODO: throw a exception:
+#		if emaValue < len(ema_initPopulation):
+#			return False
 
-		self.k = 2 / (ema + 1)
+		self.k = 2 / (emaValue + 1)
 		self.emaValue = emaValue
 
 		# First 'emaValue's are simple moving avarage
@@ -293,7 +294,7 @@ class bot(Exception):
 			logging.info(f'Binance withdraw exception: {e.status_code} - {e.message}')
 			return 3
 
-		[lastPrices.append(float(x[4])) for x in closedPrices)]
+		[lastPrices.append(float(x[4])) for x in closedPrices]
 
 		print('return closedPrices:')
 		print(closedPrices)
@@ -351,7 +352,7 @@ class bot(Exception):
 		self.calculatedSlowEMA = 0.0
 		self.calculatedFastEMA = 0.0
 
-		while runningBot:
+		while self.runningBot:
 
 			try:
 				clast = self.client.get_klines(symbol=self.cfg.get('binance_pair'), interval=self.cfg.get('time_sample'))[-1:][0]
