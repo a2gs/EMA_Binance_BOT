@@ -88,6 +88,43 @@ def daemonize(work_path):
 
 # ----------------------------------------------------------------------------------------
 
+#TODO
+class fila:
+	offset = int()
+	topo = int()
+	elements = list()
+	element = float()
+
+	def __init__(self, offsetX):
+		self.offset = offsetX
+		self.topo = 0
+
+		self.element = 0.0
+		self.elements = []
+
+	def insertN(self, n):
+		if self.offset == 0:
+			self.element = n
+		else:
+			self.elements.append(n)
+   
+		if self.topo == self.offset:
+			self.elements.pop(0)
+		else:
+			self.topo = self.topo + 1
+
+	def getN(self):
+		if self.offset == 0:
+			return(self.element)
+   
+		return(self.elements[self.topo])
+   
+	def getAll(self):
+		if self.offset == 0:
+			return(self.element)
+   
+		return(self.elements)
+
 class ema:
 	emaValue    = 0
 	ema         = 0.0
