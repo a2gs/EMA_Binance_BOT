@@ -88,12 +88,11 @@ def daemonize(work_path):
 
 # ----------------------------------------------------------------------------------------
 
-#TODO
-class fila:
-	offset = int()
-	topo = int()
+class EMAOffsetQueue:
+	offset   = int()
+	topo     = int()
 	elements = list()
-	element = float()
+	element  = float()
 
 	def __init__(self, offsetX):
 		self.offset = offsetX
@@ -130,8 +129,7 @@ class ema:
 	ema         = 0.0
 	k           = 0
 	seed        = 0.0
-	offset      = []
-	offsetValue = 0
+	offset      = object()
 
 	def __init__(self, emaValue, ema_initPopulation, offsetValue):
 
@@ -148,8 +146,7 @@ class ema:
 		# Other values are EMA calculations
 		[self.insertNewValue(x) for x in ema_initPopulation[emaValue:]]
 
-		self.offset = [] #not yet implemented....
-		self.offsetValue = offsetValue #idem...
+		self.offset = EMAOffsetQueue(offsetValue)
 
 	def getCurrent(self):
 		return(self.ema)
@@ -333,14 +330,14 @@ class bot(Exception):
 
 		[lastPrices.append(float(x[4])) for x in closedPrices]
 
-		print('return closedPrices:')
-		print(closedPrices)
-		print(len(closedPrices))
-		print('---')
-		print("Prices:")
-		print(lastPrices)
-		print("Prices len:")
-		print(len(lastPrices))
+#		print('return closedPrices:')
+#		print(closedPrices)
+#		print(len(closedPrices))
+#		print('---')
+#		print("Prices:")
+#		print(lastPrices)
+#		print("Prices len:")
+#		print(len(lastPrices))
 
 		self.emaSlow = ema(slow_emaAux, lastPrices, slow_offset)
 		self.emaFast = ema(fast_emaAux, lastPrices, fast_offset)
@@ -383,7 +380,7 @@ class bot(Exception):
 
 		logging.info(f'Symbol: [' + getPrice['symbol'] + '] Price: [' + getPrice['price'] + ']')
 
-		botIteracSleepMin = 0.47 * 60 # Nyquist frequency for 1min
+		botIteracSleepMin = 47 # Nyquist frequency for 1min
 
 		self.runningBot = True
 		self.calculatedSlowEMA = 0.0
@@ -435,7 +432,7 @@ class bot(Exception):
 			else:
 				logging.info('S=F [[HOLD ON]]')
 
-			logging.info(f'Sleeping {botIteracSleepMin} minutes...\n')
+			logging.info(f'Sleeping {botIteracSleepMin} secs...\n')
 			time.sleep(botIteracSleepMin)
 
 		return 0
