@@ -334,10 +334,10 @@ class bot(Exception):
 #		print(closedPrices)
 #		print(len(closedPrices))
 #		print('---')
-#		print("Prices:")
-#		print(lastPrices)
-#		print("Prices len:")
-#		print(len(lastPrices))
+		print("Prices:")
+		print(lastPrices)
+		print("Prices len:")
+		print(len(lastPrices))
 
 		self.emaSlow = ema(slow_emaAux, lastPrices, slow_offset)
 		self.emaFast = ema(fast_emaAux, lastPrices, fast_offset)
@@ -421,7 +421,7 @@ class bot(Exception):
 				# Candle not closed, just a forecast
 				logging.info('Forecast EMA values:')
 				self.calculatedSlowEMA = self.emaSlow.forecastValue(currentRunningPrice)
-				self.calculatedFastEMA = self.emaSlow.forecastValue(currentRunningPrice)
+				self.calculatedFastEMA = self.emaFast.forecastValue(currentRunningPrice)
 
 			logging.info(f'Slow EMA: [{self.calculatedSlowEMA}] | Fast EMA: [{self.calculatedFastEMA}]')
 
