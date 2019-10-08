@@ -102,21 +102,22 @@ class EMAOffsetQueue:
 		self.elements = []
 
 	def insertN(self, n):
+		print(f'{self.offset}: Inserting {n}')
 		if self.offset == 0:
 			self.element = n
 		else:
 			self.elements.append(n)
    
-		if self.topo == self.offset:
-			self.elements.pop(0)
-		else:
-			self.topo = self.topo + 1
+			if self.topo == self.offset:
+				self.elements.pop(0)
+			else:
+				self.topo = self.topo + 1
 
 	def getN(self):
 		if self.offset == 0:
 			return(self.element)
    
-		return(self.elements[self.topo])
+		return(self.elements[0])
    
 	def getAll(self):
 		if self.offset == 0:
@@ -124,7 +125,7 @@ class EMAOffsetQueue:
    
 		return(self.elements)
 
-class ema:
+class ema(EMAOffsetQueue):
 	emaValue    = 0
 	ema         = 0.0
 	k           = 0
@@ -144,22 +145,21 @@ class ema:
 		self.ema = sum(ema_initPopulation[:emaValue]) / emaValue
 
 		# Other values are EMA calculations
-		[self.insertNewValue(x) for x in ema_initPopulation[emaValue:]]
+		[self.insertNewValueAndGetEMA(x) for x in ema_initPopulation[emaValue:]]
 
 		self.offset = EMAOffsetQueue(offsetValue)
 
-	def getCurrent(self):
-		return(self.ema)
-
-	def insertNewValue(self, new):
+	def calculateNewValue(self, new):
 		self.ema = ((new - self.ema) * self.k) + self.ema
 
 	def insertNewValueAndGetEMA(self, new):
-		self.insertNewValue(new)
-		return(self.getCurrent())
+		self.calculateNewValue(new)
+		self.insertN(self.ema) # Ugly at this moment ... but decoupling the code at the beginner
+		return(self.getN())
 
 	def forecastValue(self, new):
-		ret = ((new - self.ema) * self.k) + self.ema
+		curr = self.getN()
+		ret = ((new - curr) * self.k) + curr
 		return(ret)
 
 class bot(Exception):
@@ -334,10 +334,10 @@ class bot(Exception):
 #		print(closedPrices)
 #		print(len(closedPrices))
 #		print('---')
-		print("Prices:")
-		print(lastPrices)
-		print("Prices len:")
-		print(len(lastPrices))
+#		print("Prices:")
+#		print(lastPrices)
+#		print("Prices len:")
+#		print(len(lastPrices))
 
 		self.emaSlow = ema(slow_emaAux, lastPrices, slow_offset)
 		self.emaFast = ema(fast_emaAux, lastPrices, fast_offset)
@@ -354,7 +354,8 @@ class bot(Exception):
 		del fast_offset
 #		del biggest_offset
 
-		logging.info(f'Initial slow EMA {self.emaSlow.getCurrent()} | Initial fast EMA {self.emaFast.getCurrent()}')
+#		logging.info(f'Initial slow EMA {self.emaSlow.getCurrent()} | Initial fast EMA {self.emaFast.getCurrent()}')
+		logging.info(f'Initial slow EMA {self.emaSlow.getN()} | Initial fast EMA {self.emaFast.getN()}')
 
 		return 0
 
