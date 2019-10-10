@@ -89,10 +89,10 @@ def daemonize(work_path):
 # ----------------------------------------------------------------------------------------
 
 class EMAOffsetQueue:
-	offsetx   = int()
-	topo     = int()
-	elements = list()
-	element  = float()
+	offsetx   = int(0)
+	topo      = int(0)
+	elements  = list()
+	element   = float(0.0)
 
 	def __init__(self, offsetX, initValue):
 		self.offsetx = offsetX
@@ -130,45 +130,38 @@ class EMAOffsetQueue:
 		return(self.elements)
 
 class ema(EMAOffsetQueue):
-	emaValue     = 0
-	initEmaValue = 0
-#	ema          = 0.0
-	k            = 0
-	seed         = 0.0
+	emaValue     = int(0)
+	initEmaValue = float(0.0)
+	k            = float(0.0)
 	offset       = object()
 
-	def __init__(self, emaValue, ema_initPopulation, offsetValue):
+	def __init__(self, emaValueP, ema_initPopulation, offsetValue):
 
 # TODO: throw a exception:
 #		if emaValue < len(ema_initPopulation):
 #			return False
 
-		self.k = 2 / (emaValue + 1)
-		self.emaValue = emaValue
+		self.k = 2 / (emaValueP + 1)
+		self.emaValue = emaValueP
 
 		# First 'emaValue's are simple moving avarage
-		self.initEmaValue = sum(ema_initPopulation[:emaValue]) / emaValue
+		self.initEmaValue = sum(ema_initPopulation[:emaValueP]) / emaValueP
 
 		self.offset = EMAOffsetQueue(offsetValue, self.initEmaValue)
 
 		# Other values are EMA calculations
-		[self.offset.insertN(self.calculateNewValue(x)) for x in ema_initPopulation[emaValue:]]
-
-	def calculateNewValue(self, new):
-		emaAux = self.getN()
-		return(((new - emaAux) * self.k) + emaAux)
+		[self.offset.insertN(self.calculateNewValue(x)) for x in ema_initPopulation[emaValueP:]]
 
 	def getEMAParams(self):
-		return([self.emaValue, self.getN(), self.k, self.seed, self.offset.value()])
+		return([self.emaValue, self.offset.getN(), self.k, self.offset.value()])
 
 	def insertNewValueAndGetEMA(self, new):
 		self.offset.insertN(self.calculateNewValue(new))
 		return(self.offset.getN())
 
-	def forecastValue(self, new):
+	def calculateNewValue(self, new):
 		curr = self.offset.getN()
-		ret = ((new - curr) * self.k) + curr
-		return(ret)
+		return(((new - curr) * self.k) + curr)
 
 class bot(Exception):
 
@@ -355,10 +348,10 @@ class bot(Exception):
 		logging.info(f'Last CLOSED candle time: {self.savedLastCandleTimeId}')
 
 		EMAInitInfos = self.emaSlow.getEMAParams()
-		logging.info(f'EMA SLOW: [{EMAInitInfos[0]}]\tcurrent: [{EMAInitInfos[1]}]\tk: [{EMAInitInfos[2]}]\tseed: [{EMAInitInfos[3]}]\toffset: [{EMAInitInfos[4]}]')
+		logging.info(f'EMA SLOW: [{EMAInitInfos[0]:03}] current: [{EMAInitInfos[1]:.21f}] k: [{EMAInitInfos[2]:.21f}] offset: [{EMAInitInfos[3]:02}]')
 
 		EMAInitInfos = self.emaFast.getEMAParams()
-		logging.info(f'EMA FAST: [{EMAInitInfos[0]}]\tcurrent: [{EMAInitInfos[1]}]\tk: [{EMAInitInfos[2]}]\tseed: [{EMAInitInfos[3]}]\toffset: [{EMAInitInfos[4]}]')
+		logging.info(f'EMA FAST: [{EMAInitInfos[0]:03}] current: [{EMAInitInfos[1]:.21f}] k: [{EMAInitInfos[2]:.21f}] offset: [{EMAInitInfos[3]:02}]')
 
 		del EMAInitInfos
 		del lastPrices
@@ -432,8 +425,8 @@ class bot(Exception):
 			else:
 				# Candle not closed, just a forecast
 				logging.info('Forecast EMA values:')
-				self.calculatedSlowEMA = self.emaSlow.forecastValue(currentRunningPrice)
-				self.calculatedFastEMA = self.emaFast.forecastValue(currentRunningPrice)
+				self.calculatedSlowEMA = self.emaSlow.calculateNewValue(currentRunningPrice)
+				self.calculatedFastEMA = self.emaFast.calculateNewValue(currentRunningPrice)
 
 			logging.info(f'Slow EMA: [{self.calculatedSlowEMA}] | Fast EMA: [{self.calculatedFastEMA}]')
 
