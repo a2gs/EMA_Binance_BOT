@@ -48,12 +48,14 @@ klineAPIIntervals = {
 # ----------------------------------------------------------------------------------------
 
 def cleanUp(pid_file_path, cmd_pipe_file_path):
+	print("aqui 1111111111111111111111111111111111111111111111111111")
 	os.remove(pid_file_path)
 	os.remove(cmd_pipe_file_path)
 
 def sigHandler(signum, frame):
 	sys.stderr.write(f'Singal {signum} received\n')
 	logging.info(f'Singal {signum} received\n')
+	print("aqui 3333333333333333333333333333333333333333333")
 	logging.shutdown()
 	sys.exit(0)
 
@@ -82,7 +84,7 @@ def daemonize(work_path):
 	os.setsid()
 	os.umask(0)
 
-	atexit.register(removePidFile)
+#	atexit.register(removePidFile)
 
 	return(os.getpid())
 
@@ -226,6 +228,8 @@ class bot(Exception):
 
 	def walletStatus(self):
 
+		ret = 0
+
 		pair = self.cfg.get('binance_pair')
 
 		logging.info("--- Wallet status ---")
@@ -235,52 +239,54 @@ class bot(Exception):
 
 		except BinanceAPIException as e:
 			logging.info(f'Binance API exception: {e.status_code} - {e.message}')
-			return 1
+			ret = 1
 
 		except BinanceRequestException as e:
 			logging.info(f'Binance request exception: {e.status_code} - {e.message}')
-			return 2
+			ret = 2
 
 		except BinanceWithdrawException as e:
 			logging.info(f'Binance withdraw exception: {e.status_code} - {e.message}')
-			return 3
+			ret = 3
 	
-		# TODO: call 'del' below with 'finally:' exception control (there are more places like this)
+		else:
+			# Exchange status
+			if self.client.get_system_status()['status'] != 0:
+				print('Binance out of service')
+				return 4
 
-		# Exchange status
-		if self.client.get_system_status()['status'] != 0:
-			print('Binance out of service')
-			return 1
+			# 1 Pair wallet
+			pair1 = self.client.get_asset_balance(pair[:3])
+			logging.info(f'Symbol 1 on wallet: [' + pair[:3] + ']\tFree: [' + pair1['free'] + ']\tLocked: [' + pair1['locked'] + ']')
 
-		# 1 Pair wallet
-		pair1 = self.client.get_asset_balance(pair[:3])
-		logging.info(f'Symbol 1 on wallet: [' + pair[:3] + ']\tFree: [' + pair1['free'] + ']\tLocked: [' + pair1['locked'] + ']')
+			# 2 Pair wallet
+			pair2 = self.client.get_asset_balance(pair[3:])
+			logging.info(f'Symbol 2 on wallet: [' + pair[3:] + ']\tFree: [' + pair2['free'] + ']\tLocked: [' + pair2['locked'] + ']')
 
-		# 2 Pair wallet
-		pair2 = self.client.get_asset_balance(pair[3:])
-		logging.info(f'Symbol 2 on wallet: [' + pair[3:] + ']\tFree: [' + pair2['free'] + ']\tLocked: [' + pair2['locked'] + ']')
+			# Open orders
+			openOrders = self.client.get_open_orders(symbol=pair)
+			for openOrder in openOrders:
+				logging.info(f'Order id [' + str(openOrder['orderId']) + '] data:\n' 
+					+ '\tPrice.......: [' + openOrder['price']          + ']\n'
+					+ '\tQtd.........: [' + openOrder['origQty']        + ']\n'
+					+ '\tQtd executed: [' + openOrder['executedQty']    + ']\n'
+					+ '\tSide........: [' + openOrder['side']           + ']\n'
+					+ '\tType........: [' + openOrder['type']           + ']\n'
+					+ '\tStop price..: [' + openOrder['stopPrice']      + ']\n'
+					+ '\tIs working..: [' + str(openOrder['isWorking']) + ']')
 
-		# Open orders
-		openOrders = self.client.get_open_orders(symbol=pair)
-		for openOrder in openOrders:
-			logging.info(f'Order id [' + str(openOrder['orderId']) + '] data:\n' 
-				+ '\tPrice.......: [' + openOrder['price']          + ']\n'
-				+ '\tQtd.........: [' + openOrder['origQty']        + ']\n'
-				+ '\tQtd executed: [' + openOrder['executedQty']    + ']\n'
-				+ '\tSide........: [' + openOrder['side']           + ']\n'
-				+ '\tType........: [' + openOrder['type']           + ']\n'
-				+ '\tStop price..: [' + openOrder['stopPrice']      + ']\n'
-				+ '\tIs working..: [' + str(openOrder['isWorking']) + ']')
+		finally:
+			del pair
+			del pair1
+			del pair2
+			del openOrder
+			del openOrders
 
-		del pair
-		del pair1
-		del pair2
-		del openOrder
-		del openOrders
-
-		return 0
+			return ret
 
 	def loadData(self):
+
+		ret = 0
 
 		logging.info("--- Loading data ---")
 
@@ -319,17 +325,18 @@ class bot(Exception):
 
 		except BinanceAPIException as e:
 			logging.info(f'Binance API exception: {e.status_code} - {e.message}')
-			return 1
+			ret = 1
 
 		except BinanceRequestException as e:
 			logging.info(f'Binance request exception: {e.status_code} - {e.message}')
-			return 2
+			ret = 2
 
 		except BinanceWithdrawException as e:
 			logging.info(f'Binance withdraw exception: {e.status_code} - {e.message}')
-			return 3
+			ret = 3
 
-		[lastPrices.append(float(x[4])) for x in closedPrices]
+		else:
+			[lastPrices.append(float(x[4])) for x in closedPrices]
 
 #		print('return closedPrices:')
 #		print(closedPrices)
@@ -340,31 +347,35 @@ class bot(Exception):
 #		print("Prices len:")
 #		print(len(lastPrices))
 
-		self.emaSlow = ema(slow_emaAux, lastPrices, slow_offset)
-		self.emaFast = ema(fast_emaAux, lastPrices, fast_offset)
+			self.emaSlow = ema(slow_emaAux, lastPrices, slow_offset)
+			self.emaFast = ema(fast_emaAux, lastPrices, fast_offset)
 
-		self.savedLastCandleTimeId = int(closedPrices[-2:][0][6])
+			self.savedLastCandleTimeId = int(closedPrices[-2:][0][6])
 
-		logging.info(f'Last CLOSED candle time: {self.savedLastCandleTimeId}')
+			logging.info(f'Last CLOSED candle time: {self.savedLastCandleTimeId}')
 
-		EMAInitInfos = self.emaSlow.getEMAParams()
-		logging.info(f'EMA SLOW: [{EMAInitInfos[0]:03}] current: [{EMAInitInfos[1]:.21f}] k: [{EMAInitInfos[2]:.21f}] offset: [{EMAInitInfos[3]:02}]')
+			EMAInitInfos = self.emaSlow.getEMAParams()
+			logging.info(f'EMA SLOW: [{EMAInitInfos[0]:03}] current: [{EMAInitInfos[1]:.21f}] k: [{EMAInitInfos[2]:.21f}] offset: [{EMAInitInfos[3]:02}]')
 
-		EMAInitInfos = self.emaFast.getEMAParams()
-		logging.info(f'EMA FAST: [{EMAInitInfos[0]:03}] current: [{EMAInitInfos[1]:.21f}] k: [{EMAInitInfos[2]:.21f}] offset: [{EMAInitInfos[3]:02}]')
+			EMAInitInfos = self.emaFast.getEMAParams()
+			logging.info(f'EMA FAST: [{EMAInitInfos[0]:03}] current: [{EMAInitInfos[1]:.21f}] k: [{EMAInitInfos[2]:.21f}] offset: [{EMAInitInfos[3]:02}]')
 
-		del EMAInitInfos
-		del lastPrices
-		del closedPrices
-		del slow_emaAux
-		del fast_emaAux
-		del slow_offset
-		del fast_offset
+		finally:
+			del EMAInitInfos
+			del lastPrices
+			del closedPrices
+			del slow_emaAux
+			del fast_emaAux
+			del slow_offset
+			del fast_offset
 
-		return 0
+			return ret
 
 # ---------
 	def start(self):
+
+		ret = 0
+
 		logging.info("--- Stating ---")
 
 		# Pair price
@@ -373,74 +384,79 @@ class bot(Exception):
 
 		except BinanceAPIException as e:
 			logging.info(f'Binance API exception: {e.status_code} - {e.message}')
-			return 1
+			ret = 1
 
 		except BinanceRequestException as e:
 			logging.info(f'Binance request exception: {e.status_code} - {e.message}')
-			return 2
+			ret = 2
 
 		except BinanceWithdrawException as e:
 			logging.info(f'Binance withdraw exception: {e.status_code} - {e.message}')
-			return 3
+			ret = 3
 
-		logging.info(f'Symbol: [' + getPrice['symbol'] + '] Price: [' + getPrice['price'] + ']')
+		else:
+			logging.info(f'Symbol: [' + getPrice['symbol'] + '] Price: [' + getPrice['price'] + ']')
 
-		botIteracSleepMin = 47 # Nyquist frequency for 1min
+			botIteracSleepMin = 47 # Nyquist frequency for 1min
 
-		self.runningBot = True
-		self.calculatedSlowEMA = 0.0
-		self.calculatedFastEMA = 0.0
+			self.runningBot = True
+			self.calculatedSlowEMA = 0.0
+			self.calculatedFastEMA = 0.0
 
-		while self.runningBot:
+			while self.runningBot:
 
-			try:
-				clast = self.client.get_klines(symbol=self.cfg.get('binance_pair'), interval=self.cfg.get('time_sample'))[-1:][0]
+				try:
+					clast = self.client.get_klines(symbol=self.cfg.get('binance_pair'), interval=self.cfg.get('time_sample'))[-1:][0]
 
-			except BinanceAPIException as e:
-				logging.info(f'Binance API exception: {e.status_code} - {e.message}')
-				return 1
+				except BinanceAPIException as e:
+					logging.info(f'Binance API exception: {e.status_code} - {e.message}')
+					ret = 1
 
-			except BinanceRequestException as e:
-				logging.info(f'Binance request exception: {e.status_code} - {e.message}')
-				return 2
+				except BinanceRequestException as e:
+					logging.info(f'Binance request exception: {e.status_code} - {e.message}')
+					ret = 2
 
-			except BinanceWithdrawException as e:
-				logging.info(f'Binance withdraw exception: {e.status_code} - {e.message}')
-				return 3
+				except BinanceWithdrawException as e:
+					logging.info(f'Binance withdraw exception: {e.status_code} - {e.message}')
+					ret = 3
 
-			currentRunningCandleTimeId = int(clast[6])
-			currentRunningPrice = float(clast[4])
+				currentRunningCandleTimeId = int(clast[6])
+				currentRunningPrice = float(clast[4])
 
-			logging.info(f'Value: [{currentRunningPrice}] | Time Id: [{currentRunningCandleTimeId}] | Last closed candle time id: [{self.savedLastCandleTimeId}]')
+				logging.info(f'Value: [{currentRunningPrice}] | Time Id: [{currentRunningCandleTimeId}] | Last closed candle time id: [{self.savedLastCandleTimeId}]')
 
-			if currentRunningCandleTimeId > self.savedLastCandleTimeId:
-				# (enter here at first bot iteration)
-				logging.info('CANDLE CLOSED (timeslice): Updating EMAs and Candle time ID:')
+				if currentRunningCandleTimeId > self.savedLastCandleTimeId:
+					# (enter here at first bot iteration)
+					logging.info('CANDLE CLOSED (timeslice): Updating EMAs and Candle time ID:')
 
-				self.savedLastCandleTimeId = currentRunningCandleTimeId
+					self.savedLastCandleTimeId = currentRunningCandleTimeId
 
-				self.calculatedSlowEMA = self.emaSlow.insertNewValueAndGetEMA(currentRunningPrice)
-				self.calculatedFastEMA = self.emaFast.insertNewValueAndGetEMA(currentRunningPrice)
+					self.calculatedSlowEMA = self.emaSlow.insertNewValueAndGetEMA(currentRunningPrice)
+					self.calculatedFastEMA = self.emaFast.insertNewValueAndGetEMA(currentRunningPrice)
 
-			else:
-				# Candle not closed, just a forecast
-				logging.info('Forecast EMA values:')
-				self.calculatedSlowEMA = self.emaSlow.calculateNewValue(currentRunningPrice)
-				self.calculatedFastEMA = self.emaFast.calculateNewValue(currentRunningPrice)
+				else:
+					# Candle not closed, just a forecast
+					logging.info('Forecast EMA values:')
+					self.calculatedSlowEMA = self.emaSlow.calculateNewValue(currentRunningPrice)
+					self.calculatedFastEMA = self.emaFast.calculateNewValue(currentRunningPrice)
 
-			logging.info(f'Slow EMA: [{self.calculatedSlowEMA}] | Fast EMA: [{self.calculatedFastEMA}]')
+				logging.info(f'Slow EMA: [{self.calculatedSlowEMA}] | Fast EMA: [{self.calculatedFastEMA}]')
 
-			if self.calculatedSlowEMA < self.calculatedFastEMA:
-				logging.info('S<F [[BUY]]')
-			elif self.calculatedSlowEMA > self.calculatedFastEMA:
-				logging.info('S>F [[SELL]]')
-			else:
-				logging.info('S=F [[HOLD ON]]')
+				if self.calculatedSlowEMA < self.calculatedFastEMA:
+					logging.info('S<F [[BUY]]')
+				elif self.calculatedSlowEMA > self.calculatedFastEMA:
+					logging.info('S>F [[SELL]]')
+				else:
+					logging.info('S=F [[HOLD ON]]')
 
-			logging.info(f'Sleeping {botIteracSleepMin} secs...\n')
-			time.sleep(botIteracSleepMin)
+				logging.info(f'Sleeping {botIteracSleepMin} secs...\n')
+				time.sleep(botIteracSleepMin)
 
-		return 0
+		finally:
+			del clast
+			del getPrice
+
+			return ret
 
 
 # ----------------------------------------------------------------------------------------
@@ -511,30 +527,26 @@ def main(argv):
 		ret = bot1.walletStatus()
 		if ret != 0:
 			logging.info(f"BOT wallet status return ERROR: [{ret}]")
-			logging.shutdown()
-			cleanUp(pid_file_path, cmd_pipe_file_path)
 			sys.exit(ret)
 
 		ret = bot1.loadData()
 		if ret != 0:
 			logging.info(f"BOT load data return ERROR: [{ret}]")
-			logging.shutdown()
-			cleanUp(pid_file_path, cmd_pipe_file_path)
 			sys.exit(ret)
 
 		ret = bot1.start()
 		if ret != 0:
 			logging.info(f"BOT start return ERROR: [{ret}]")
-			logging.shutdown()
-			cleanUp(pid_file_path, cmd_pipe_file_path)
 			sys.exit(ret)
 
-		logging.info(f"BOT return: [{ret}]")
-
 #	CMD_PIPE_FILE.close()
-	logging.shutdown()
-	cleanUp(pid_file_path, cmd_pipe_file_path)
-	sys.exit(ret)
+	finally:
+		print("aqui 222222222222222222222222222222222222222222222222222222222")
+
+		logging.info(f"BOT return: [{ret}]")
+		logging.shutdown()
+		cleanUp(pid_file_path, cmd_pipe_file_path)
+		sys.exit(ret)
 
 if __name__ == '__main__':
 
