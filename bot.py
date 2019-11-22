@@ -48,14 +48,12 @@ klineAPIIntervals = {
 # ----------------------------------------------------------------------------------------
 
 def cleanUp(pid_file_path, cmd_pipe_file_path):
-	print("aqui 1111111111111111111111111111111111111111111111111111")
 	os.remove(pid_file_path)
 	os.remove(cmd_pipe_file_path)
 
 def sigHandler(signum, frame):
 	sys.stderr.write(f'Singal {signum} received\n')
 	logging.info(f'Singal {signum} received\n')
-	print("aqui 3333333333333333333333333333333333333333333")
 	logging.shutdown()
 	sys.exit(0)
 
@@ -131,6 +129,8 @@ class EMAOffsetQueue:
    
 		return(self.elements)
 
+# https://dicionariodoinvestidor.com.br/content/o-que-e-media-movel-exponencial-mme/
+# https://www.tororadar.com.br/investimento/analise-tecnica/medias-moveis
 class ema(EMAOffsetQueue):
 	emaValue     = int(0)
 	initEmaValue = float(0.0)
@@ -147,12 +147,12 @@ class ema(EMAOffsetQueue):
 		self.emaValue = emaValueP
 
 		# First 'emaValue's are simple moving avarage
-		self.initEmaValue = sum(ema_initPopulation[:emaValueP]) / emaValueP
+		self.initEmaValue = sum(ema_initPopulation[-emaValueP:]) / emaValueP
 
 		self.offset = EMAOffsetQueue(offsetValue, self.initEmaValue)
 
 		# Other values are EMA calculations
-		[self.offset.insertN(self.calculateNewValue(x)) for x in ema_initPopulation[emaValueP:]]
+		[self.offset.insertN(self.calculateNewValue(x)) for x in ema_initPopulation[-emaValueP:]]
 
 	def getEMAParams(self):
 		return([self.emaValue, self.offset.getN(), self.k, self.offset.value()])
@@ -321,7 +321,7 @@ class bot(Exception):
 		'''
 
 		try:
-			closedPrices = self.client.get_klines(symbol=self.cfg.get('binance_pair'), interval=self.cfg.get('time_sample'))[:-1]
+			closedPrices = self.client.get_klines(symbol=self.cfg.get('binance_pair'), interval=self.cfg.get('time_sample'))[-slow_emaAux-1:-1]
 
 		except BinanceAPIException as e:
 			logging.info(f'Binance API exception: {e.status_code} - {e.message}')
@@ -338,14 +338,14 @@ class bot(Exception):
 		else:
 			[lastPrices.append(float(x[4])) for x in closedPrices]
 
-#		print('return closedPrices:')
-#		print(closedPrices)
-#		print(len(closedPrices))
-#		print('---')
-#		print("Prices:")
-#		print(lastPrices)
-#		print("Prices len:")
-#		print(len(lastPrices))
+			print('return closedPrices:')
+			print(closedPrices)
+			print(len(closedPrices))
+			print('---')
+			print("Prices:")
+			print(lastPrices)
+			print("Prices len:")
+			print(len(lastPrices))
 
 			self.emaSlow = ema(slow_emaAux, lastPrices, slow_offset)
 			self.emaFast = ema(fast_emaAux, lastPrices, fast_offset)
@@ -541,8 +541,6 @@ def main(argv):
 
 #	CMD_PIPE_FILE.close()
 	finally:
-		print("aqui 222222222222222222222222222222222222222222222222222222222")
-
 		logging.info(f"BOT return: [{ret}]")
 		logging.shutdown()
 		cleanUp(pid_file_path, cmd_pipe_file_path)
