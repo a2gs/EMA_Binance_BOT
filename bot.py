@@ -13,157 +13,22 @@ import errno
 import signal
 import logging
 
+import ema
+
+from cfg import botCfg
+from cfg import klineAPIIntervals
+
+from util import cleanUp
+from util import sigHandler
+from util import auxPid_file_path
+from util import auxCmd_pipe_file_path
+from util import removePidFile
+from util import daemonize
+
 from binance.client import Client
 from binance.exceptions import BinanceAPIException, BinanceWithdrawException, BinanceRequestException
 
-class botCfg:
-	cfg = {}
-
-	def get(self, param):
-		return self.cfg.get(param, 'UNDEF')
-
-	def set(self, param, value):
-		self.cfg[param] = value
-
-#runningBot = True # Used to stop/start bot main loop (cmds from pipe file)
-
-klineAPIIntervals = {
-	'1m'  : Client.KLINE_INTERVAL_1MINUTE,
-	'3m'  : Client.KLINE_INTERVAL_3MINUTE,
-	'5m'  : Client.KLINE_INTERVAL_5MINUTE,
-	'15m' : Client.KLINE_INTERVAL_15MINUTE,
-	'30m' : Client.KLINE_INTERVAL_30MINUTE,
-	'1h'  : Client.KLINE_INTERVAL_1HOUR,
-	'2h'  : Client.KLINE_INTERVAL_2HOUR,
-	'4h'  : Client.KLINE_INTERVAL_4HOUR,
-	'6h'  : Client.KLINE_INTERVAL_6HOUR,
-	'8h'  : Client.KLINE_INTERVAL_8HOUR,
-	'12h' : Client.KLINE_INTERVAL_12HOUR,
-	'1d'  : Client.KLINE_INTERVAL_1DAY,
-	'3d'  : Client.KLINE_INTERVAL_3DAY,
-	'1w'  : Client.KLINE_INTERVAL_1WEEK,
-	'1M'  : Client.KLINE_INTERVAL_1MONTH
-}
-
 # ----------------------------------------------------------------------------------------
-
-def cleanUp(pid_file_path, cmd_pipe_file_path):
-	os.remove(pid_file_path)
-	os.remove(cmd_pipe_file_path)
-
-def sigHandler(signum, frame):
-	sys.stderr.write(f'Singal {signum} received\n')
-	logging.info(f'Singal {signum} received\n')
-	logging.shutdown()
-	sys.exit(0)
-
-auxPid_file_path = ''
-auxCmd_pipe_file_path = ''
-
-def removePidFile():
-	global auxPid_file_path
-	global auxCmd_pipe_file_path
-
-	cleanUp(auxPid_file_path, auxCmd_pipe_file_path)
-
-def daemonize(work_path):
-	pid_num = 0
-
-	try:
-		pid_num = os.fork()
-		if pid_num > 0:
-			sys.exit(0)
-
-	except OSError as e:
-		sys.stderr.write(f"Fork failed: {e.errno} - {e.strerror}\n")
-		sys.exit(1)
-
-	os.chdir(work_path)
-	os.setsid()
-	os.umask(0)
-
-#	atexit.register(removePidFile)
-
-	return(os.getpid())
-
-# ----------------------------------------------------------------------------------------
-
-class EMAOffsetQueue:
-	offsetx   = int(0)
-	topo      = int(0)
-	elements  = list()
-	element   = float(0.0)
-
-	def __init__(self, offsetX, initValue):
-		self.offsetx = offsetX
-		self.topo = 0
-
-		self.element = 0.0
-		self.elements = []
-
-		self.insertN(initValue)
-
-	def value(self):
-		return(self.offsetx)
-
-	def insertN(self, n):
-		if self.offsetx == 0:
-			self.element = n
-		else:
-			self.elements.append(n)
-   
-			if self.topo == self.offsetx:
-				self.elements.pop(0)
-			else:
-				self.topo = self.topo + 1
-
-	def getN(self):
-		if self.offsetx == 0:
-			return(self.element)
-   
-		return(self.elements[0])
-   
-	def getAll(self):
-		if self.offsetx == 0:
-			return(self.element)
-   
-		return(self.elements)
-
-# https://dicionariodoinvestidor.com.br/content/o-que-e-media-movel-exponencial-mme/
-# https://www.tororadar.com.br/investimento/analise-tecnica/medias-moveis
-class ema(EMAOffsetQueue):
-	emaValue     = int(0)
-	initEmaValue = float(0.0)
-	k            = float(0.0)
-	offset       = object()
-
-	def __init__(self, emaValueP, ema_initPopulation, offsetValue):
-
-# TODO: throw a exception:
-#		if emaValue < len(ema_initPopulation):
-#			return False
-
-		self.k = 2 / (emaValueP + 1)
-		self.emaValue = emaValueP
-
-		# First 'emaValue's are simple moving avarage
-		self.initEmaValue = sum(ema_initPopulation[-emaValueP:]) / emaValueP
-
-		self.offset = EMAOffsetQueue(offsetValue, self.initEmaValue)
-
-		# Other values are EMA calculations
-		[self.offset.insertN(self.calculateNewValue(x)) for x in ema_initPopulation[-emaValueP:]]
-
-	def getEMAParams(self):
-		return([self.emaValue, self.offset.getN(), self.k, self.offset.value()])
-
-	def insertNewValueAndGetEMA(self, new):
-		self.offset.insertN(self.calculateNewValue(new))
-		return(self.offset.getN())
-
-	def calculateNewValue(self, new):
-		curr = self.offset.getN()
-		return(((new - curr) * self.k) + curr)
 
 class bot(Exception):
 
@@ -457,7 +322,6 @@ class bot(Exception):
 			del getPrice
 
 			return ret
-
 
 # ----------------------------------------------------------------------------------------
 

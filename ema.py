@@ -5,49 +5,79 @@
 # andre.scota@gmail.com
 # MIT license
 
-import sys
-import random
+class EMAOffsetQueue:
+	offsetx   = int(0)
+	topo      = int(0)
+	elements  = list()
+	element   = float(0.0)
 
-def sma(smaValue, population):
-	return(sum(population)/smaValue)
+	def __init__(self, offsetX, initValue):
+		self.offsetx = offsetX
+		self.topo = 0
 
-def ema(atual, anterior, k):
-	return(((atual - anterior) * k) + anterior)
+		self.element = 0.0
+		self.elements = []
 
-def main(argv):
+		self.insertN(initValue)
 
-	print(f'EMA = {argv[1]}')
+	def value(self):
+		return(self.offsetx)
 
-	random.seed()
-	emaRequest = int(argv[1])
-	qtdPopulation = emaRequest * 4
+	def insertN(self, n):
+		if self.offsetx == 0:
+			self.element = n
+		else:
+			self.elements.append(n)
+   
+			if self.topo == self.offsetx:
+				self.elements.pop(0)
+			else:
+				self.topo = self.topo + 1
 
-	r = random.sample(range(0, 100), qtdPopulation)
+	def getN(self):
+		if self.offsetx == 0:
+			return(self.element)
+   
+		return(self.elements[0])
+   
+	def getAll(self):
+		if self.offsetx == 0:
+			return(self.element)
+   
+		return(self.elements)
 
-	print(f'Population = {r} - Len: [{len(r)}]')
+# https://dicionariodoinvestidor.com.br/content/o-que-e-media-movel-exponencial-mme/
+# https://www.tororadar.com.br/investimento/analise-tecnica/medias-moveis
+class ema(EMAOffsetQueue):
+	emaValue     = int(0)
+	initEmaValue = float(0.0)
+	k            = float(0.0)
+	offset       = object()
 
-	smaSeedVar = sma(emaRequest, r[:emaRequest])
+	def __init__(self, emaValueP, ema_initPopulation, offsetValue):
 
-	k = 2 / (emaRequest + 1)
+# TODO: throw a exception:
+#		if emaValue < len(ema_initPopulation):
+#			return False
 
-	print(f'SMA({argv[1]}) = [{smaSeedVar}] | EMA({emaRequest}) | k = {k}')
+		self.k = 2 / (emaValueP + 1)
+		self.emaValue = emaValueP
 
-	seed = smaSeedVar
-	emaVar = 0
+		# First 'emaValue's are simple moving avarage
+		self.initEmaValue = sum(ema_initPopulation[-emaValueP:]) / emaValueP
 
-	for x in range(emaRequest, qtdPopulation):
+		self.offset = EMAOffsetQueue(offsetValue, self.initEmaValue)
 
-		emaVar = ema(r[x], seed, k)
+		# Other values are EMA calculations
+		[self.offset.insertN(self.calculateNewValue(x)) for x in ema_initPopulation[-emaValueP:]]
 
-		print(f"{x}) atual = [{r[x]}] EMA = [{emaVar}]")	
+	def getEMAParams(self):
+		return([self.emaValue, self.offset.getN(), self.k, self.offset.value()])
 
-		seed = emaVar
+	def insertNewValueAndGetEMA(self, new):
+		self.offset.insertN(self.calculateNewValue(new))
+		return(self.offset.getN())
 
-if __name__ == '__main__':
-
-	if len(sys.argv) != 2:
-		print(f"Usage:\n\t{sys.argv[0]} <EMA>\n(population will be EMA * 4)")
-		sys.exit(1)
-
-	else:
-		main(sys.argv)
+	def calculateNewValue(self, new):
+		curr = self.offset.getN()
+		return(((new - curr) * self.k) + curr)
