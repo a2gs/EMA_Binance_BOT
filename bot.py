@@ -14,6 +14,7 @@ import signal
 import logging
 
 import ema
+import notify
 
 from cfg import botCfg
 from cfg import klineAPIIntervals
