@@ -414,23 +414,33 @@ def main(argv):
 if __name__ == '__main__':
 
 	if len(sys.argv) != 9:
-		print(f"Usage:\n\t{sys.argv[0]} <WORK_PATH> <BOT_ID> <BINANCE_PAIR> <FAST_EMA> <OFFSET_FAST_EMA> <SLOW_EMA> <OFFSET_SLOW_EMA> <TIME_SAMPLE>\nSample:\n\t{sys.argv[0]} ./ BOT1 BNBBTC 9 0 21 +4 30m\n")
-		print("Where <TIME_SAMPLE>:"
-			+ "\t1m = 1MINUTE\n"
-			+ "\t3m = 3MINUTE\n"
-			+ "\t5m = 5MINUTE\n"
+		print(f"Usage:\n\t{sys.argv[0]} <WORK_PATH> <BOT_ID> <BINANCE_PAIR> <FAST_EMA> <OFFSET_FAST_EMA> <SLOW_EMA> <OFFSET_SLOW_EMA> <TIME_SAMPLE> <NOTIFY>\nSample:\n\t{sys.argv[0]} ./ BOT1 BNBBTC 9 0 21 +4 30m twitter\n\n")
+		print("You must define the environment variables with yours:\t\n"
+			+ "\t BINANCE_APIKEY = Binance API key\n"
+			+ "\t BINANCE_SEKKEY = Binance Security key\n\n")
+		print("Where <TIME_SAMPLE>:\n"
+			+ "\t1m  = 1MINUTE\n"
+			+ "\t3m  = 3MINUTE\n"
+			+ "\t5m  = 5MINUTE\n"
 			+ "\t15m = 15MINUTE\n"
 			+ "\t30m = 30MINUTE\n"
-			+ "\t1h = 1HOUR\n"
-			+ "\t2h = 2HOUR\n"
-			+ "\t4h = 4HOUR\n"
-			+ "\t6h = 6HOUR\n"
-			+ "\t8h = 8HOUR\n"
+			+ "\t1h  = 1HOUR\n"
+			+ "\t2h  = 2HOUR\n"
+			+ "\t4h  = 4HOUR\n"
+			+ "\t6h  = 6HOUR\n"
+			+ "\t8h  = 8HOUR\n"
 			+ "\t12h = 12HOUR\n"
-			+ "\t1d = 1DAY\n"
-			+ "\t3d = 3DAY\n"
-			+ "\t1w = 1WEEK\n"
-			+ "\t1M = 1MONTH\n")
+			+ "\t1d  = 1DAY\n"
+			+ "\t3d  = 3DAY\n"
+			+ "\t1w  = 1WEEK\n"
+			+ "\t1M  = 1MONTH\n"
+			+ "<NOTIFY>:\n"
+			+ "\tlog     = Writes calls to file log\n"
+			+ "\ttwitter = Writes calls to Twitter. You must define the environment variables with yours:\n"
+			+ "\t\tTWITTER_APIKEY      = Consumer API keys: API key\n"
+			+ "\t\tTWITTER_APISEKKEY   = Consumer API keys: API security key\n"
+			+ "\t\tTWITTER_ACCSSTKN    = Access token and access token secret: Access token\n"
+			+ "\t\tTWITTER_ACCSSSEKTKN = Access token and access token secret: Access security token\n")
 		sys.exit(1)
 
 	else:
