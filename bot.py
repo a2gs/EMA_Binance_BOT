@@ -14,7 +14,7 @@ import signal
 import logging
 
 import ema
-import notify
+import botNotify
 
 from cfg import botCfg
 from cfg import klineAPIIntervals
@@ -213,8 +213,8 @@ class bot(Exception):
 			print("Prices len:")
 			print(len(lastPrices))
 
-			self.emaSlow = ema(slow_emaAux, lastPrices, slow_offset)
-			self.emaFast = ema(fast_emaAux, lastPrices, fast_offset)
+			self.emaSlow = ema.ema(slow_emaAux, lastPrices, slow_offset)
+			self.emaFast = ema.ema(fast_emaAux, lastPrices, fast_offset)
 
 			self.savedLastCandleTimeId = int(closedPrices[-2:][0][6])
 

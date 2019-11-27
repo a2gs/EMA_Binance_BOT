@@ -13,7 +13,6 @@ export TWITTER_APIKEY=''
 export TWITTER_APISEKKEY=''
 
 # Access token & access token secret
-
 export TWITTER_ACCSSTKN=''
 export TWITTER_ACCSSSEKTKN=''
 
