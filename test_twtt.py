@@ -7,8 +7,9 @@
 
 import os
 import sys
+import time
 
-import botNotify
+import notify
 
 # ----------------------------------------------------------------------------------------
 
@@ -22,8 +23,8 @@ print(f'{APISEKKEY}')
 print(f'{ACCSSTKN}')
 print(f'{ACCSSSEKTKN}')
 
-#ntf = botNotify.botNotify('twitter')
-ntf = botNotify.ntfTwitter()
+#ntf = notify.botNotify('twitter')
+ntf = notify.ntfTwitter()
 
 ntf.auth(APIKEY, APISEKKEY, ACCSSTKN, ACCSSSEKTKN)
-ntf.write(sys.argv[1])
+ntf.write("ABC", sys.argv[1])

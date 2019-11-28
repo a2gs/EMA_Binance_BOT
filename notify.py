@@ -6,6 +6,8 @@
 # MIT license
 
 import tweepy
+import time
+from time import strftime, gmtime
 
 class ntfTwitter:
 	ConsAPIKey = str()
@@ -40,8 +42,8 @@ class ntfTwitter:
 		except:
 			return 0
 
-	def write(self, message):
-		self.twttcli.update_status(message)
+	def write(self, idProc, message):
+		self.twttcli.update_status(strftime("%Y-%m-%d %H:%M:%S ", gmtime()) + idProc + " " + message)
 
 def logAuth():
 	pass
@@ -55,7 +57,7 @@ def displayAuth():
 def displayWrite():
 	pass
 
-class botNotify:
+class notify:
 #	auth = 0
 #	write = 0
 	twtt = object()
