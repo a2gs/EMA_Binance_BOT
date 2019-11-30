@@ -22,9 +22,14 @@ print(f'{APIKEY}')
 print(f'{APISEKKEY}')
 print(f'{ACCSSTKN}')
 print(f'{ACCSSSEKTKN}')
+print('------------------------------')
 
 #ntf = notify.botNotify('twitter')
 ntf = notify.ntfTwitter()
 
 ntf.auth(APIKEY, APISEKKEY, ACCSSTKN, ACCSSSEKTKN)
 ntf.write("ABC", sys.argv[1])
+
+print('User auth info: ' + str(ntf.getUser()))
+print('*************************************************************')
+print('Last tweet info: ' + str(ntf.getLastStatus()))

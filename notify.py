@@ -16,6 +16,8 @@ class ntfTwitter:
 	AccssTknSek = str()
 	twttcli = object()
 	twttAuth = object()
+	lastStatus = object()
+	usrTwtt = object()
 
 	def __init__(self):
 		self.ConsAPIKey = str()
@@ -24,6 +26,8 @@ class ntfTwitter:
 		self.AccssTknSek = str()
 		self.twttcli = object()
 		self.twttAuth = object()
+		self.lastStatus = object()
+		self.usrTwtt = object()
 
 	def auth(self, consapikey, consapikeysek, accsstkn, accsstknsek):
 		self.ConsAPIKey = consapikey
@@ -37,13 +41,20 @@ class ntfTwitter:
 		self.twttcli = tweepy.API(self.twttAuth)
 
 		try:
-			self.twttcli.verify_credentials()
-			return -1
+			self.usrTwtt = self.twttcli.verify_credentials()
+			return True
 		except:
-			return 0
+			return False
 
 	def write(self, idProc, message):
-		self.twttcli.update_status(strftime("%Y-%m-%d %H:%M:%S ", gmtime()) + idProc + " " + message)
+		self.lastStatus = self.twttcli.update_status(strftime("%Y-%m-%d %H:%M:%S ", gmtime()) + idProc + " " + message)
+		return self.lastStatus
+
+	def getUser(self):
+		return self.usrTwtt
+
+	def getLastStatus(self):
+		return self.lastStatus
 
 def logAuth():
 	pass
