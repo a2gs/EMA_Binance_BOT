@@ -6,8 +6,8 @@
 # MIT license
 
 import tweepy
-import time
-from time import strftime, gmtime
+#import time
+#from time import strftime, gmtime
 
 class ntfTwitter:
 	ConsAPIKey = str()
@@ -46,8 +46,8 @@ class ntfTwitter:
 		except:
 			return False
 
-	def write(self, idProc, message):
-		self.lastStatus = self.twttcli.update_status(strftime("%Y-%m-%d %H:%M:%S ", gmtime()) + idProc + " " + message)
+	def write(self, message):
+		self.lastStatus = self.twttcli.update_status(message)
 		return self.lastStatus
 
 	def getUser(self):
@@ -68,7 +68,7 @@ def displayAuth():
 def displayWrite():
 	pass
 
-class notify:
+class notify: # Facade class to 'notify schema': twitter, telegram, log, etcetc..
 #	auth = 0
 #	write = 0
 	twtt = object()

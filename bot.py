@@ -31,6 +31,39 @@ from binance.exceptions import BinanceAPIException, BinanceWithdrawException, Bi
 
 # ----------------------------------------------------------------------------------------
 
+class twttData:
+	active      = False
+	apiKey      = ''
+	apiSekKey   = ''
+	accssTkn    = ''
+	accssSekTkn = ''
+	botId       = ''
+	ntf         = object() # twitter data access
+
+	def __init__(self):
+		self.ntf = notify.ntfTwitter()
+		self.active = False
+
+	def accessData(self, botIdP):
+		self.apiKey      = os.getenv('TWITTER_APIKEY', 'NOTDEF')
+		self.apiSekKey   = os.getenv('TWITTER_APISEKKEY', 'NOTDEF')
+		self.accssTkn    = os.getenv('TWITTER_ACCSSTKN', 'NOTDEF')
+		self.accssSekTkn = os.getenv('TWITTER_ACCSSSEKTKN', 'NOTDEF')
+		self.botId       = botIdP
+
+		if self.apiKey == 'NOTDEF' or self.apiSekKey == 'NOTDEF' or self.accssTkn == 'NOTDEF' or self.accssSekTkn == 'NOTDEF':
+			return -1
+
+		if self.ntf.auth(self.apiKey, self.apiSekKey, self.accssTkn, self.accssSekTkn):
+			return -1
+
+		self.active = True
+
+		return 0
+
+	def write(self, message):
+		self.ntf.write(time.strftime("%Y-%m-%d %H:%M:%S ", time.gmtime()) + self.botId + " " + message)
+
 class bot(Exception):
 
 	savedLastCandleTimeId = int(0)
@@ -38,9 +71,11 @@ class bot(Exception):
 	calculatedFastEMA     = float(0.0)
 	runningBot            = True
 	cfg                   = object()
+	twtt                  = object()
 
-	def __init__(self, pid, binance_apikey, binance_sekkey, work_path, pid_file_path, cmd_pipe_file_path, log_file, binance_pair, fast_ema, fast_ema_offset, slow_ema, slow_ema_offset, time_sample):
+	def __init__(self, pid, botId, binance_apikey, binance_sekkey, work_path, pid_file_path, cmd_pipe_file_path, log_file, binance_pair, fast_ema, fast_ema_offset, slow_ema, slow_ema_offset, time_sample, notification):
 		self.cfg = botCfg()
+		self.twtt = twttData()
 
 		global auxPid_file_path
 		global auxCmd_pipe_file_path
@@ -60,6 +95,9 @@ class bot(Exception):
 		self.cfg.set('fast_ema_offset'   , fast_ema_offset)
 		self.cfg.set('slow_ema'          , slow_ema)
 		self.cfg.set('slow_ema_offset'   , slow_ema_offset)
+
+		if notification.lower == 'twitter':
+			self.twtt.accessData(botId)
 
 		try:
 			self.cfg.set('time_sample', klineAPIIntervals[time_sample])
@@ -373,14 +411,15 @@ def main(argv):
 #	ret = runBot(logFile, BINANCE_PAIR, binance_apiKey, binance_sekKey)
 
 	try:
-		bot1 = bot(pid,
+		bot1 = bot(pid, argv[2],
 		           binance_apikey, binance_sekkey,
 		           work_path, pid_file_path, cmd_pipe_file_path,
 		           log_file,
 		           binance_pair,
 		           fast_ema, fast_ema_offset,
 		           slow_ema, slow_ema_offset,
-					  time_sample)
+					  time_sample,
+		           argv[9])
 	except:
 		logging.info(f"BOT initialization error!")
 		logging.shutdown()
@@ -413,7 +452,7 @@ def main(argv):
 
 if __name__ == '__main__':
 
-	if len(sys.argv) != 9:
+	if len(sys.argv) != 10:
 		print(f"Usage:\n\t{sys.argv[0]} <WORK_PATH> <BOT_ID> <BINANCE_PAIR> <FAST_EMA> <OFFSET_FAST_EMA> <SLOW_EMA> <OFFSET_SLOW_EMA> <TIME_SAMPLE> <NOTIFY>\nSample:\n\t{sys.argv[0]} ./ BOT1 BNBBTC 9 0 21 +4 30m twitter\n\n")
 		print("You must define the environment variables with yours:\t\n"
 			+ "\t BINANCE_APIKEY = Binance API key\n"
