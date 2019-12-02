@@ -62,7 +62,8 @@ class twttData:
 		return 0
 
 	def write(self, message):
-		self.ntf.write(time.strftime("%Y-%m-%d %H:%M:%S ", time.gmtime()) + self.botId + " " + message)
+		if self.active == True:
+			self.ntf.write(time.strftime("%Y-%m-%d %H:%M:%S ", time.gmtime()) + self.botId + " " + message)
 
 class bot(Exception):
 
@@ -280,7 +281,8 @@ class bot(Exception):
 
 		ret = 0
 
-		logging.info("--- Stating ---")
+		logging.info("--- Starting ---")
+		twtt.write('Bot Up!') 
 
 		# Pair price
 		try:
@@ -302,6 +304,7 @@ class bot(Exception):
 			logging.info(f'Symbol: [' + getPrice['symbol'] + '] Price: [' + getPrice['price'] + ']')
 
 			botIteracSleepMin = 47 # Nyquist frequency for 1min
+			msgNow            = ''
 
 			self.runningBot = True
 			self.calculatedSlowEMA = 0.0
@@ -343,15 +346,19 @@ class bot(Exception):
 					logging.info('Forecast EMA values:')
 					self.calculatedSlowEMA = self.emaSlow.calculateNewValue(currentRunningPrice)
 					self.calculatedFastEMA = self.emaFast.calculateNewValue(currentRunningPrice)
+					continue
 
 				logging.info(f'Slow EMA: [{self.calculatedSlowEMA}] | Fast EMA: [{self.calculatedFastEMA}]')
 
 				if self.calculatedSlowEMA < self.calculatedFastEMA:
-					logging.info('S<F [[BUY]]')
+					msgNow = 'S (' + str(self.calculatedSlowEMA) + ') < F (' + str(self.calculatedFastEMA) + ') [[BUY]] (Now: ' + str(currentRunningPrice) + ')'
 				elif self.calculatedSlowEMA > self.calculatedFastEMA:
-					logging.info('S>F [[SELL]]')
+					msgNow = 'S (' + str(self.calculatedSlowEMA) + ') > F (' + str(self.calculatedFastEMA) + ') [[SELL]] (Now: ' + str(currentRunningPrice) + ')'
 				else:
-					logging.info('S=F [[HOLD ON]]')
+					msgNow = 'S (' + str(self.calculatedSlowEMA) + ') = F (' + str(self.calculatedFastEMA) + ') [[HOLD ON]] (Now: ' + str(currentRunningPrice) + ')'
+
+				logging.info(msgNow)
+				twtt.write(msgNow)
 
 				logging.info(f'Sleeping {botIteracSleepMin} secs...\n')
 				time.sleep(botIteracSleepMin)
