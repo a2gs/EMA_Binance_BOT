@@ -32,7 +32,7 @@ from binance.exceptions import BinanceAPIException, BinanceWithdrawException, Bi
 # ----------------------------------------------------------------------------------------
 
 class twttData:
-	active      = False
+	activated   = False
 	apiKey      = ''
 	apiSekKey   = ''
 	accssTkn    = ''
@@ -42,7 +42,7 @@ class twttData:
 
 	def __init__(self):
 		self.ntf = notify.ntfTwitter()
-		self.active = False
+		self.activated = False
 
 	def accessData(self, botIdP):
 		self.apiKey      = os.getenv('TWITTER_APIKEY', 'NOTDEF')
@@ -54,15 +54,15 @@ class twttData:
 		if self.apiKey == 'NOTDEF' or self.apiSekKey == 'NOTDEF' or self.accssTkn == 'NOTDEF' or self.accssSekTkn == 'NOTDEF':
 			return -1
 
-		if self.ntf.auth(self.apiKey, self.apiSekKey, self.accssTkn, self.accssSekTkn):
+		if self.ntf.auth(self.apiKey, self.apiSekKey, self.accssTkn, self.accssSekTkn) == False:
 			return -1
 
-		self.active = True
+		self.activated = True
 
 		return 0
 
 	def write(self, message):
-		if self.active == True:
+		if self.activated == True:
 			self.ntf.write(time.strftime("%Y-%m-%d %H:%M:%S ", time.gmtime()) + self.botId + " " + message)
 
 class bot(Exception):
@@ -97,7 +97,7 @@ class bot(Exception):
 		self.cfg.set('slow_ema'          , slow_ema)
 		self.cfg.set('slow_ema_offset'   , slow_ema_offset)
 
-		if notification.lower == 'twitter':
+		if notification.lower() == 'twitter':
 			self.twtt.accessData(botId)
 
 		try:
@@ -243,14 +243,14 @@ class bot(Exception):
 		else:
 			[lastPrices.append(float(x[4])) for x in closedPrices]
 
-			print('return closedPrices:')
-			print(closedPrices)
-			print(len(closedPrices))
-			print('---')
-			print("Prices:")
-			print(lastPrices)
-			print("Prices len:")
-			print(len(lastPrices))
+#			print('return closedPrices:')
+#			print(closedPrices)
+#			print(len(closedPrices))
+#			print('---')
+#			print("Prices:")
+#			print(lastPrices)
+#			print("Prices len:")
+#			print(len(lastPrices))
 
 			self.emaSlow = ema.ema(slow_emaAux, lastPrices, slow_offset)
 			self.emaFast = ema.ema(fast_emaAux, lastPrices, fast_offset)
@@ -282,7 +282,7 @@ class bot(Exception):
 		ret = 0
 
 		logging.info("--- Starting ---")
-		twtt.write('Bot Up!') 
+		self.twtt.write('Bot Up!') 
 
 		# Pair price
 		try:
@@ -358,7 +358,7 @@ class bot(Exception):
 					msgNow = 'S (' + str(self.calculatedSlowEMA) + ') = F (' + str(self.calculatedFastEMA) + ') [[HOLD ON]] (Now: ' + str(currentRunningPrice) + ')'
 
 				logging.info(msgNow)
-				twtt.write(msgNow)
+				self.twtt.write(msgNow)
 
 				logging.info(f'Sleeping {botIteracSleepMin} secs...\n')
 				time.sleep(botIteracSleepMin)
