@@ -28,7 +28,7 @@ print('------------------------------')
 ntf = notify.ntfTwitter()
 
 ntf.auth(APIKEY, APISEKKEY, ACCSSTKN, ACCSSSEKTKN)
-ntf.write("ABC", sys.argv[1])
+ntf.write(sys.argv[1])
 
 print('User auth info: ' + str(ntf.getUser()))
 print('*************************************************************')
