@@ -5,4 +5,4 @@ A exponential moving average (EMA) crossover strategy BOT for Binance
 - [ ] cmd's through namedpipe
 - [x] shell script 'kill bot'
 - [ ] place order
-- [ ] candle offset
+- [x] candle offset
