@@ -131,7 +131,7 @@ class bot(Exception):
 		self.calculatedFastEMA     = 0.0
 		self.runningBot            = True
 
-	def walletStatus(self):
+	def walletStatus(self) -> int:
 
 		ret = 0
 
@@ -180,16 +180,9 @@ class bot(Exception):
 					+ '\tStop price..: [' + openOrder['stopPrice']      + ']\n'
 					+ '\tIs working..: [' + str(openOrder['isWorking']) + ']')
 
-		finally:
-			del pair
-			del pair1
-			del pair2
-			del openOrder
-			del openOrders
+		return ret
 
-			return ret
-
-	def loadData(self):
+	def loadData(self) -> int:
 
 		ret = 0
 
@@ -259,12 +252,13 @@ class bot(Exception):
 
 			logging.info(f'Last CLOSED candle time: {self.savedLastCandleTimeId}')
 
-			EMAInitInfos = self.emaSlow.getEMAParams()
-			logging.info(f'EMA SLOW: [{EMAInitInfos[0]:03}] current: [{EMAInitInfos[1]:.21f}] k: [{EMAInitInfos[2]:.21f}] offset: [{EMAInitInfos[3]:02}]')
-
 			EMAInitInfos = self.emaFast.getEMAParams()
 			logging.info(f'EMA FAST: [{EMAInitInfos[0]:03}] current: [{EMAInitInfos[1]:.21f}] k: [{EMAInitInfos[2]:.21f}] offset: [{EMAInitInfos[3]:02}]')
 
+			EMAInitInfos = self.emaSlow.getEMAParams()
+			logging.info(f'EMA SLOW: [{EMAInitInfos[0]:03}] current: [{EMAInitInfos[1]:.21f}] k: [{EMAInitInfos[2]:.21f}] offset: [{EMAInitInfos[3]:02}]')
+
+		"""
 		finally:
 			del EMAInitInfos
 			del lastPrices
@@ -273,18 +267,22 @@ class bot(Exception):
 			del fast_emaAux
 			del slow_offset
 			del fast_offset
+		"""
 
-			return ret
+		return ret
 
 # ---------
-	def start(self):
+	def start(self) -> int:
 
 		ret = 0
 
 		logging.info("--- Starting ---")
 		self.twtt.write('Bot Up!') 
 
+		time.sleep(10000)
+
 		# Pair price
+		"""
 		try:
 			getPrice = self.client.get_symbol_ticker(symbol=self.cfg.get('binance_pair'))
 
@@ -368,6 +366,8 @@ class bot(Exception):
 			del getPrice
 
 			return ret
+
+		"""
 
 # ----------------------------------------------------------------------------------------
 
