@@ -271,7 +271,7 @@ class bot(Exception):
 		logging.info("--- Starting ---")
 		self.twtt.write('Bot Up!') 
 
-		time.sleep(10000)
+		time.sleep(10)
 
 		# Pair price
 		"""
