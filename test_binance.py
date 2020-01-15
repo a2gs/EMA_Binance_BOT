@@ -13,9 +13,11 @@ from binance.exceptions import BinanceAPIException, BinanceWithdrawException, Bi
 try:
 	client = Client(os.getenv('BINANCE_APIKEY', 'NOTDEF_APIKEY'), os.getenv('BINANCE_SEKKEY', 'NOTDEF_APIKEY'), {"verify": True, "timeout": 20})
 
+	p = 27
+
 #	closedPrices = client.get_klines(symbol='BNBBTC', interval='1h')[-25-1:-1]
 
-	closedPrices = client.get_klines(symbol='DASHBTC', interval='1M')[-21-1:-1]
+	closedPrices = client.get_klines(symbol='DASHBTC', interval='1M')[-p-1:-1]
 
 	lastPrices = []
 	[lastPrices.append(float(x[4])) for x in closedPrices]
@@ -25,11 +27,18 @@ try:
 	print("Prices len:")
 	print(len(lastPrices))
 
-	emaS = ema.ema(21, lastPrices, 0)
+	emaS = ema2.ema(p, 0)
+	emaS.load(lastPrices)
+
 
 #	print(client.get_server_time())
 
-	print(emaS.getEMAParams())
+	emaS.printData()
+
+	newV = emaS.calcNewValueIsertAndPop(0.014020)
+
+	print(f'--------------------------\nNew EMA value: {newV}')
+	emaS.printData()
 
 
 except BinanceAPIException as e:
