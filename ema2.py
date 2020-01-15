@@ -7,7 +7,7 @@
 
 class ema:
 
-	emaRange = list()
+	emaRange = list() # Queue
 	period   = int(0)
 	k        = float(0.0)
 	offset   = int(0)
@@ -18,11 +18,19 @@ class ema:
 		self.setOffset(emaOffset)
 
 	def load(self, sample : list) -> bool:
-		if len(sample) < self.period:
+		if len(sample) <= self.period:
 			return False
 
-		self.emaRange = sample[-self.period:]
-		self.insertAndPop(sum(self.emaRange) / float(self.period))
+#1		self.emaRange = sample[-self.period:]
+#1		self.insertAndPop(sum(self.emaRange) / float(self.period))
+
+		try:
+			self.backinsert(sum(sample[0:self.period]) / float(self.period))
+		except:
+			raise
+
+		for i in sample[self.period:]:
+			self.calcNewValueIsertAndPop(i)
 
 		return True
 
@@ -54,7 +62,9 @@ class ema:
 	def calcNewValueIsertAndPop(self, newValue : float) -> float:
 		newEMA = (((newValue - self.emaRange[-1]) * self.k) + self.emaRange[-1])
 		self.backinsert(newEMA)
-		self.frontpop()
+
+		if len(self.emaRange) >= self.period: # pop a element only queue is full (self.period elements)
+			self.frontpop()
 
 		return newEMA
 
