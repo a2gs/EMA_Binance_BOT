@@ -271,6 +271,18 @@ class bot(Exception):
 		logging.info("--- Starting ---")
 		self.twtt.write('Bot Up!') 
 
+		time_res = client.get_server_time()
+		logging.info(f"Binance time: {time_res}")
+
+		try:
+			client.ping()
+		except BinanceRequestException: 
+			print('BinanceRequestException PING ERROR')
+		except BinanceAPIExceptioan:
+			print('BinanceAPIExceptioan PING ERROR')
+		else:
+			print('ok ping')
+
 		time.sleep(10)
 
 		# Pair price
