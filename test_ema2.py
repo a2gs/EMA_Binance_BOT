@@ -16,44 +16,31 @@ try:
 	p = 27
 	interv = '1w'
 	offs = 7
+	symb='DASHBTC'
 
-#	closedPrices = client.get_klines(symbol='BNBBTC', interval='1h')[-25-1:-1]
-
-#	closedPrices = client.get_klines(symbol='DASHBTC', interval=interv)[-p-1:-1]
-	closedPrices = client.get_klines(symbol='DASHBTC', interval=interv)
+	closedPrices = client.get_klines(symbol=symb, interval=interv)
 	lastYetNotClosed = closedPrices[-1]
 
 	lastYetNotClosedPrice = lastYetNotClosed[4]
 	lastYetNotClosedTime  = lastYetNotClosed[6]
 
-#	print(closedPrices)
-#	print(lastYetNotClosed)
-#	print(float(lastYetNotClosedPrice))
-#	print(int(lastYetNotClosedTime))
-
 	lastPrices = []
 	[lastPrices.append(float(x[4])) for x in closedPrices[:-1]]
 
-#	print("Prices:")
-#	print(lastPrices)
-#	print("Prices len:")
-#	print(len(lastPrices))
-
 	del closedPrices
-#	print('--------------------------------------------------')
 
 	emaS = ema2.ema(p, offs)
 	emaS.load(lastPrices)
+	emaS.printData()
 
-#	print(client.get_server_time())
+	print('------------------------------------')
 
-#	emaS.printData()
+	print(f'Adding last price: {lastYetNotClosedPrice}')
 
 	newV = emaS.calcNewValueIsertAndPop(float(lastYetNotClosedPrice))
 
-#	print(f'--------------------------\nNew EMA value: {newV}')
 	emaS.printData()
-
+	print(f'Current (not offset value) EMA: {newV}')
 
 except BinanceAPIException as e:
 	logging.info(f'Binance API exception: {e.status_code} - {e.message}')
