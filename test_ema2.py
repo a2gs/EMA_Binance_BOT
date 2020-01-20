@@ -44,7 +44,6 @@ try:
 	emaS = ema2.ema(p, 0)
 	emaS.load(lastPrices)
 
-
 #	print(client.get_server_time())
 
 #	emaS.printData()
