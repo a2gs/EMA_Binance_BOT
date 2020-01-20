@@ -15,6 +15,7 @@ try:
 
 	p = 27
 	interv = '1w'
+	offs = 7
 
 #	closedPrices = client.get_klines(symbol='BNBBTC', interval='1h')[-25-1:-1]
 
@@ -41,7 +42,7 @@ try:
 	del closedPrices
 #	print('--------------------------------------------------')
 
-	emaS = ema2.ema(p, 0)
+	emaS = ema2.ema(p, offs)
 	emaS.load(lastPrices)
 
 #	print(client.get_server_time())
