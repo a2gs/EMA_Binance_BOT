@@ -41,6 +41,7 @@ try:
 
 	emaS.printData()
 	print(f'Current (not offset value) EMA: {newV}')
+	print(f'Offset value EMA: {emaS.get()}')
 
 except BinanceAPIException as e:
 	logging.info(f'Binance API exception: {e.status_code} - {e.message}')

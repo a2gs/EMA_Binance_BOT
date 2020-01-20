@@ -21,9 +21,6 @@ class ema:
 		if len(sample) <= self.period:
 			return False
 
-#1		self.emaRange = sample[-self.period:]
-#1		self.insertAndPop(sum(self.emaRange) / float(self.period))
-
 		try:
 			self.backinsert(sum(sample[0:self.period]) / float(self.period))
 		except:
