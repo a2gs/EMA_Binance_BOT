@@ -36,6 +36,12 @@ class ema:
 		# 0 returns the highest emaRange value. Offset starts counting from the end of python list (-1, right)
 		self.offset = -emaOffset if emaOffset else -1
 
+	def info(self) -> {}:
+		return {'period' : self.period, 'offset' : self.offset, 'current' : self.emaRange[self.offset]}
+
+	def getRange(self) -> []:
+		return self.emaRange
+
 	def printData(self):
 		print(f'Period: {self.period}\t\tOffset: {self.offset} (-1 = highest)\t\tCurrent value: {self.emaRange[self.offset]}')
 		print(f'Set: {self.emaRange}')

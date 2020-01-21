@@ -43,6 +43,11 @@ try:
 	print(f'Current (not offset value) EMA: {newV}')
 	print(f'Offset value EMA: {emaS.get()}')
 
+	print('------------------------------------')
+
+	info = emaS.info()
+	print(f"Infos: period[{info['period']}] offset[{info['offset']}] current[{info['current']}]")
+
 except BinanceAPIException as e:
 	logging.info(f'Binance API exception: {e.status_code} - {e.message}')
 

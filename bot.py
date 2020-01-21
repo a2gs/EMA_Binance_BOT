@@ -92,6 +92,7 @@ class bot(Exception):
 		self.cfg.set('work_path'         , work_path)
 		self.cfg.set('pid'               , pid)
 		self.cfg.set('pid_file_path'     , pid_file_path)
+		self.cfg.set('bot_id'            , botId)
 		self.cfg.set('cmd_pipe_file_path', cmd_pipe_file_path)
 		self.cfg.set('log_file'          , log_file)
 		self.cfg.set('binance_pair'      , binance_pair)
@@ -106,7 +107,7 @@ class bot(Exception):
 		self.emaFast = ema2.ema(self.cfg.get('fast_ema'), self.cfg.get('fast_ema_offset'))
 
 		if notification.lower() == 'twitter':
-			self.twtt.accessData(botId)
+			self.twtt.accessData(self.cfg.get('bot_id'))
 
 		try:
 			self.cfg.set('time_sample', klineAPIIntervals[time_sample])
@@ -123,7 +124,7 @@ class bot(Exception):
 			logging.info(f"Erro creating cmd pipe file: {e.errno} - {e.strerror}")
 			raise OSError
 
-		logging.info(f"\n================================================================\nBOT Configuration:")
+		logging.info(f"\n================================================================\nBOT {self.cfg.get('bot_id')} Configuration:")
 		logging.info(f"\tPID = [{self.cfg.get('pid')}]")
 		logging.info(f"\tPID file = [{self.cfg.get('pid_file_path')}]")
 		logging.info(f"\tCMD pipe = [{self.cfg.get('cmd_pipe_file_path')}]")
@@ -244,9 +245,8 @@ class bot(Exception):
 			logging.info("Exception loading EMA fast data!")
 			return 8
 
-		# TODO: send to twitter
-		self.emaSlow.printData()
-		self.emaFast.printData()
+#		self.emaSlow.printData()
+#		self.emaFast.printData()
 
 		del closedPrices
 		del lastPrices
@@ -259,7 +259,21 @@ class bot(Exception):
 	def start(self) -> int:
 
 		logging.info("--- Starting ---")
-		self.twtt.write('Bot Up!') 
+
+		infotwtS = {}
+		infotwtF = {}
+
+		infotwtS = self.emaSlow.info()
+		infotwtF = self.emaFast.info()
+
+		helloBot = f"Bot Up! EMASlow[{infotwtS['period']}:{infotwtS['offset']}:{infotwtS['current']}] EMAFast[{infotwtF['period']}:{infotwtF['offset']}:{infotwtF['current']}]"
+
+		self.twtt.write(helloBot)
+		logging.info(helloBot)
+
+		del helloBot
+		del infotwtF
+		del infotwtS
 
 		time_res = self.client.get_server_time()
 		logging.info(f"Binance time: {time_res['serverTime']}")
