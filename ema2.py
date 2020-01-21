@@ -7,12 +7,13 @@
 
 class ema:
 
-	emaRange = list() # Queue
+	emaRange = object()
 	period   = int(0)
 	k        = float(0.0)
 	offset   = int(0)
 
 	def __init__(self, emaValue : int, emaOffset : int):
+		self.emaRange = list() # Queue
 		self.period = emaValue
 		self.k = 2 / (emaValue + 1)
 		self.setOffset(emaOffset)

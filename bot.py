@@ -13,7 +13,8 @@ import errno
 import signal
 import logging
 
-import ema
+#import ema
+import ema2
 import notify
 
 from cfg import botCfg
@@ -67,22 +68,24 @@ class twttData:
 
 class bot(Exception):
 
-	savedLastCandleTimeId = int(0)
-	calculatedSlowEMA     = float(0.0)
-	calculatedFastEMA     = float(0.0)
-	runningBot            = True
-	cfg                   = object()
-	twtt                  = object()
+	cfg     = object()
+	twtt    = object()
+	emaSlow = object()
+	emaFast = object()
 
-	def __init__(self, pid, botId, binance_apikey, binance_sekkey, work_path, pid_file_path, cmd_pipe_file_path, log_file, binance_pair, fast_ema, fast_ema_offset, slow_ema, slow_ema_offset, time_sample, notification):
-		self.cfg = botCfg()
-		self.twtt = twttData()
+	# -----------------------------------------------
+	def __init__(self, pid : int, botId : str, binance_apikey : str, binance_sekkey : str,
+	             work_path : str, pid_file_path : str, cmd_pipe_file_path : str, log_file : str,
+	             binance_pair : str, fast_ema : int, fast_ema_offset : int, slow_ema : int,
+	             slow_ema_offset: int, time_sample : int , notification):
 
 		global auxPid_file_path
 		global auxCmd_pipe_file_path
 
 		auxPid_file_path      = pid_file_path
 		auxCmd_pipe_file_path = cmd_pipe_file_path
+
+		self.cfg = botCfg()
 
 		self.cfg.set('binance_apikey'    , binance_apikey)
 		self.cfg.set('binance_sekkey'    , binance_sekkey)
@@ -96,6 +99,11 @@ class bot(Exception):
 		self.cfg.set('fast_ema_offset'   , fast_ema_offset)
 		self.cfg.set('slow_ema'          , slow_ema)
 		self.cfg.set('slow_ema_offset'   , slow_ema_offset)
+
+		self.twtt = twttData()
+
+		self.emaSlow = ema2.ema(self.cfg.get('slow_ema'), self.cfg.get('slow_ema_offset'))
+		self.emaFast = ema2.ema(self.cfg.get('fast_ema'), self.cfg.get('fast_ema_offset'))
 
 		if notification.lower() == 'twitter':
 			self.twtt.accessData(botId)
@@ -126,11 +134,7 @@ class bot(Exception):
 		logging.info(f"\tTime sample = [{self.cfg.get('time_sample')}]")
 		logging.info(f"\tBinance API key = [{self.cfg.get('binance_apikey')}]\n")
 
-		self.savedLastCandleTimeId = 0
-		self.calculatedSlowEMA     = 0.0
-		self.calculatedFastEMA     = 0.0
-		self.runningBot            = True
-
+	# -----------------------------------------------
 	def walletStatus(self) -> int:
 
 		pair = self.cfg.get('binance_pair')
@@ -177,44 +181,36 @@ class bot(Exception):
 				+ '\tStop price..: [' + openOrder['stopPrice']      + ']\n'
 				+ '\tIs working..: [' + str(openOrder['isWorking']) + ']')
 
+		del pair
+		del pair1
+		del pair2
+		del openOrders
+
 		return 0
 
+	# -----------------------------------------------
 	def loadData(self) -> int:
 
 		logging.info("--- Loading data ---")
 
-		lastPrices = []
-
-		slow_emaAux = self.cfg.get('slow_ema')
-		fast_emaAux = self.cfg.get('fast_ema')
-		slow_offset = self.cfg.get('slow_ema_offset')
-		fast_offset = self.cfg.get('fast_ema_offset')
-		
-#		if slow_offset < fast_offset:
-#			biggest_offset = fast_offset
-#		else:
-#			biggest_offset = slow_offset
-
-		# the last candle is running, so it will be descarded
-		'''
-		[
-			1499040000000,      # [ 0]Open time
-			"0.01634790",       # [ 1]Open
-			"0.80000000",       # [ 2]High
-			"0.01575800",       # [ 3]Low
-			"0.01577100",       # [ 4]Close
-			"148976.11427815",  # [ 5]Volume
-			1499644799999,      # [ 6]Close time
-			"2434.19055334",    # [ 7]Quote asset volume
-			308,                # [ 8]Number of trades
-			"1756.87402397",    # [ 9]Taker buy base asset volume
-			"28.46694368",      # [10]Taker buy quote asset volume
-			"17928899.62484339" # [11]Can be ignored
-		]
-		'''
-
 		try:
-			closedPrices = self.client.get_klines(symbol=self.cfg.get('binance_pair'), interval=self.cfg.get('time_sample'))[-slow_emaAux-1:-1]
+			closedPrices = self.client.get_klines(symbol=self.cfg.get('binance_pair'), interval=self.cfg.get('time_sample'))
+			'''
+			[
+				1499040000000,      # [ 0]Open time
+				"0.01634790",       # [ 1]Open
+				"0.80000000",       # [ 2]High
+				"0.01575800",       # [ 3]Low
+				"0.01577100",       # [ 4]Close
+				"148976.11427815",  # [ 5]Volume
+				1499644799999,      # [ 6]Close time
+				"2434.19055334",    # [ 7]Quote asset volume
+				308,                # [ 8]Number of trades
+				"1756.87402397",    # [ 9]Taker buy base asset volume
+				"28.46694368",      # [10]Taker buy quote asset volume
+				"17928899.62484339" # [11]Can be ignored
+			]
+			'''
 
 		except BinanceAPIException as e:
 			logging.info(f'Binance API exception: {e.status_code} - {e.message}')
@@ -228,62 +224,58 @@ class bot(Exception):
 			logging.info(f'Binance withdraw exception: {e.status_code} - {e.message}')
 			return 3
 
-		[lastPrices.append(float(x[4])) for x in closedPrices]
+		# the last candle is running, so it will be descarded
+		lastPrices = []
+		[lastPrices.append(float(x[4])) for x in closedPrices[:-1]]
 
-#		print('return closedPrices:')
-#		print(closedPrices)
-#		print(len(closedPrices))
-#		print('---')
-		print("Prices:")
-		print(lastPrices)
-		print("Prices len:")
-		print(len(lastPrices))
+		try:
+			if self.emaSlow.load(lastPrices) == False:
+				logging.info(f"Error loading data for Slow EMA calculation ({self.cfg.get('slow_ema')}).")
+				return 4
+		except:
+			logging.info("Exception loading EMA slow data!")
+			return 6
 
-		self.emaSlow = ema.ema(slow_emaAux, lastPrices, slow_offset)
-		self.emaFast = ema.ema(fast_emaAux, lastPrices, fast_offset)
+		try:
+			if self.emaFast.load(lastPrices) == False:
+				logging.info(f"Error loading data for Slow EMA calculation ({self.cfg.get('slow_ema')}).")
+				return 7
+		except:
+			logging.info("Exception loading EMA fast data!")
+			return 8
 
-		self.savedLastCandleTimeId = int(closedPrices[-2:][0][6])
+		# TODO: send to twitter
+		self.emaSlow.printData()
+		self.emaFast.printData()
 
-		logging.info(f'Last CLOSED candle time: {self.savedLastCandleTimeId}')
+		del closedPrices
+		del lastPrices
 
-		EMAInitInfos = self.emaFast.getEMAParams()
-		logging.info(f'EMA FAST: [{EMAInitInfos[0]:03}] current: [{EMAInitInfos[1]:.21f}] k: [{EMAInitInfos[2]:.21f}] offset: [{EMAInitInfos[3]:02}]')
-
-		EMAInitInfos = self.emaSlow.getEMAParams()
-		logging.info(f'EMA SLOW: [{EMAInitInfos[0]:03}] current: [{EMAInitInfos[1]:.21f}] k: [{EMAInitInfos[2]:.21f}] offset: [{EMAInitInfos[3]:02}]')
-
-		"""
-		finally:
-			del EMAInitInfos
-			del lastPrices
-			del closedPrices
-			del slow_emaAux
-			del fast_emaAux
-			del slow_offset
-			del fast_offset
-		"""
+		logging.info("Ok!")
 
 		return 0
 
-# ---------
+	# -----------------------------------------------
 	def start(self) -> int:
 
 		logging.info("--- Starting ---")
 		self.twtt.write('Bot Up!') 
 
-		time_res = client.get_server_time()
-		logging.info(f"Binance time: {time_res}")
+		time_res = self.client.get_server_time()
+		logging.info(f"Binance time: {time_res['serverTime']}")
 
 		try:
-			client.ping()
+			self.client.ping()
 		except BinanceRequestException: 
 			print('BinanceRequestException PING ERROR')
 		except BinanceAPIExceptioan:
 			print('BinanceAPIExceptioan PING ERROR')
-		else:
-			print('ok ping')
+
+		print('ok ping')
 
 		time.sleep(10)
+
+		return 0
 
 		# Pair price
 		"""
