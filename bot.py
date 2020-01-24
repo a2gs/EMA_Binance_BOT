@@ -12,6 +12,7 @@ import time
 import errno
 import signal
 import logging
+from logging.handlers import RotatingFileHandler
 
 #import ema
 import ema2
@@ -68,25 +69,48 @@ class twttData:
 
 class bot(Exception):
 
-	lastPrice = float(0.0)
-	cfg     = object()
-	twtt    = object()
-	emaSlow = object()
-	emaFast = object()
+	lastPrice = 0
+	cfg       = 0
+	twtt      = 0
+	emaSlow   = 0
+	emaFast   = 0
 
 	# -----------------------------------------------
-	def __init__(self, pid : int, botId : str, binance_apikey : str, binance_sekkey : str,
-	             work_path : str, pid_file_path : str, cmd_pipe_file_path : str, log_file : str,
-	             binance_pair : str, fast_ema : int, fast_ema_offset : int, slow_ema : int,
-	             slow_ema_offset: int, time_sample : int , notification : str):
+	def __init__(self):
+
+		self.lastPrice = float(0.0)
+		self.emaSlow   = object()
+		self.emaFast   = object()
+		self.cfg       = botCfg()
+		self.twtt      = twttData()
+
+#def __init__(self, pid : int, botId : str, binance_apikey : str, binance_sekkey : str,
+#             work_path : str, pid_file_path : str, cmd_pipe_file_path : str, log_file : str,
+#             binance_pair : str, fast_ema : int, fast_ema_offset : int, slow_ema : int,
+#             slow_ema_offset: int, time_sample : int , notification : str):
+
+	# -----------------------------------------------
+	def loadCfg(self,
+	            pid : int,
+	            botId : str,
+	            binance_apikey : str,
+	            binance_sekkey : str,
+	            work_path : str,
+	            pid_file_path : str,
+	            cmd_pipe_file_path : str,
+	            binance_pair : str,
+	            fast_ema : int,
+	            fast_ema_offset : int,
+	            slow_ema : int,
+	            slow_ema_offset: int,
+	            time_sample : int,
+	            notification : str):
 
 		global auxPid_file_path
 		global auxCmd_pipe_file_path
 
 		auxPid_file_path      = pid_file_path
 		auxCmd_pipe_file_path = cmd_pipe_file_path
-
-		self.cfg = botCfg()
 
 		self.cfg.set('binance_apikey'    , binance_apikey)
 		self.cfg.set('binance_sekkey'    , binance_sekkey)
@@ -95,19 +119,14 @@ class bot(Exception):
 		self.cfg.set('pid_file_path'     , pid_file_path)
 		self.cfg.set('bot_id'            , botId)
 		self.cfg.set('cmd_pipe_file_path', cmd_pipe_file_path)
-		self.cfg.set('log_file'          , log_file)
 		self.cfg.set('binance_pair'      , binance_pair)
 		self.cfg.set('fast_ema'          , fast_ema)
 		self.cfg.set('fast_ema_offset'   , fast_ema_offset)
 		self.cfg.set('slow_ema'          , slow_ema)
 		self.cfg.set('slow_ema_offset'   , slow_ema_offset)
 
-		self.twtt = twttData()
-
 		self.emaSlow = ema2.ema(self.cfg.get('slow_ema'), self.cfg.get('slow_ema_offset'))
 		self.emaFast = ema2.ema(self.cfg.get('fast_ema'), self.cfg.get('fast_ema_offset'))
-
-		self.lastPrice = float(0.0)
 
 		if notification.lower() == 'twitter':
 			self.twtt.accessData(self.cfg.get('bot_id'))
@@ -345,13 +364,14 @@ class bot(Exception):
 def main(argv):
 	ret = 0
 
+	pid_file_path      = f'{argv[2]}_pid.text'
+	cmd_pipe_file_path = f'{argv[2]}_pipecmd'
+	log_file           = f'{argv[2]}_log.text'
+	"""
 	binance_apikey = os.getenv('BINANCE_APIKEY', 'NOTDEF_APIKEY')
 	binance_sekkey = os.getenv('BINANCE_SEKKEY', 'NOTDEF_APIKEY')
 
 	work_path          = argv[1]
-	pid_file_path      = f'{argv[2]}_pid.text'
-	cmd_pipe_file_path = f'{argv[2]}_pipecmd'
-	log_file           = f'{argv[2]}_log.text'
 	binance_pair       = argv[3]
 	fast_ema           = int(argv[4])
 	fast_ema_offset    = int(argv[5])
@@ -361,11 +381,12 @@ def main(argv):
 	notif              = argv[9]
 	log_maxBytes       = int(argv[10])
 	log_nRotate        = int(argv[11])
+	"""
 
-	pid = daemonize(work_path)
+	pid = daemonize(argv[1])
 
 	f = open(pid_file_path, 'w+')
-	f.write(f"{pid}\n{cmd_pipe_file_path}\n{log_file}\n{work_path}\n{binance_pair}\n")
+	f.write(f"{pid}\n{cmd_pipe_file_path}\n{log_file}\n{argv[1]}\n{argv[3]}\n")
 	f.close()
 
 	signal.signal(signal.SIGILL, sigHandler)
@@ -376,8 +397,10 @@ def main(argv):
 	signal.signal(signal.SIGSEGV, sigHandler)
 
 	#logging.basicConfig(filename=log_file, filemode='a', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y%m%d%H%M%S')
-	logging.basicConfig(handlers=[RotatingFileHandler(log_file, maxBytes=log_maxBytes, backupCount=log_nRotate)],
-	                    filemode='a', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y%m%d%H%M%S')
+	logging.basicConfig(handlers = [ RotatingFileHandler(log_file, maxBytes = int(argv[10]), backupCount = int(argv[11])) ],
+	                    level    = logging.INFO,
+	                    format   = '%(asctime)s - %(levelname)s - %(message)s',
+	                    datefmt  = '%Y%m%d%H%M%S')
 
 #	except IOError:
 #		sys.stderr.write(f"Creating log file failed: {e.errno} - {e.strerror}\n")
@@ -394,6 +417,8 @@ def main(argv):
 #	ret = runBot(logFile, BINANCE_PAIR, binance_apiKey, binance_sekKey)
 
 	try:
+		bot1 = bot()
+		"""
 		bot1 = bot(pid, argv[2],
 		           binance_apikey, binance_sekkey,
 		           work_path, pid_file_path, cmd_pipe_file_path,
@@ -403,6 +428,22 @@ def main(argv):
 		           slow_ema, slow_ema_offset,
 					  time_sample,
 		           notif)
+		"""
+		bot1.loadCfg(pid                = pid,
+		             botId              = argv[2],
+		             binance_apikey     = os.getenv('BINANCE_APIKEY', 'NOTDEF_APIKEY'),
+		             binance_sekkey     = os.getenv('BINANCE_SEKKEY', 'NOTDEF_APIKEY'),
+		             work_path          = argv[1],
+		             pid_file_path      = pid_file_path,
+		             cmd_pipe_file_path = cmd_pipe_file_path,
+		             binance_pair       = argv[3],
+		             fast_ema           = int(argv[4]),
+		             fast_ema_offset    = int(argv[5]),
+		             slow_ema           = int(argv[6]),
+		             slow_ema_offset    = int(argv[7]),
+		             time_sample        = argv[8],
+		             notification       = argv[9])
+
 	except:
 		logging.info(f"BOT initialization error!")
 		logging.shutdown()
