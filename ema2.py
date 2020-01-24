@@ -63,8 +63,11 @@ class ema:
 		self.backinsert(value)
 		return self.frontpop()
 
+	def calcEMA(self, value : float) -> float:
+		return ((value - self.emaRange[-1]) * self.k) + self.emaRange[-1]
+
 	def calcNewValueIsertAndPop(self, newValue : float) -> float:
-		newEMA = (((newValue - self.emaRange[-1]) * self.k) + self.emaRange[-1])
+		newEMA = self.calcEMA(newValue)
 		self.backinsert(newEMA)
 
 		if len(self.emaRange) > self.period: # pop a element only queue is full (self.period elements)

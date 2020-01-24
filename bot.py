@@ -68,6 +68,7 @@ class twttData:
 
 class bot(Exception):
 
+	lastPrice = float(0.0)
 	cfg     = object()
 	twtt    = object()
 	emaSlow = object()
@@ -105,6 +106,8 @@ class bot(Exception):
 
 		self.emaSlow = ema2.ema(self.cfg.get('slow_ema'), self.cfg.get('slow_ema_offset'))
 		self.emaFast = ema2.ema(self.cfg.get('fast_ema'), self.cfg.get('fast_ema_offset'))
+
+		self.lastPrice = float(0.0)
 
 		if notification.lower() == 'twitter':
 			self.twtt.accessData(self.cfg.get('bot_id'))
@@ -229,6 +232,8 @@ class bot(Exception):
 		lastPrices = []
 		[lastPrices.append(float(x[4])) for x in closedPrices[:-1]]
 
+		self.lastPrice = float(closedPrices[-1][4]) # Saving last candle lcose price
+
 		try:
 			if self.emaSlow.load(lastPrices) == False:
 				logging.info(f"Error loading data for Slow EMA calculation ({self.cfg.get('slow_ema')}).")
@@ -256,6 +261,11 @@ class bot(Exception):
 		return 0
 
 	# -----------------------------------------------
+	def logAndNotif(self, msg : str):
+		self.twtt.write(msg)
+		logging.info(msg)
+
+	# -----------------------------------------------
 	def start(self) -> int:
 
 		logging.info("--- Starting ---")
@@ -266,116 +276,69 @@ class bot(Exception):
 		infotwtS = self.emaSlow.info()
 		infotwtF = self.emaFast.info()
 
-		helloBot = f"Bot Up! EMASlow[{infotwtS['period']}:{infotwtS['offset']}:{infotwtS['current']}] EMAFast[{infotwtF['period']}:{infotwtF['offset']}:{infotwtF['current']}]"
+		self.logAndNotif(f"Bot Up! EMASlow[{infotwtS['period']}:{infotwtS['offset']}:{infotwtS['current']}] EMAFast[{infotwtF['period']}:{infotwtF['offset']}:{infotwtF['current']}]")
 
-		self.twtt.write(helloBot)
-		logging.info(helloBot)
-
-		del helloBot
 		del infotwtF
 		del infotwtS
 
-		time_res = self.client.get_server_time()
-		logging.info(f"Binance time: {time_res['serverTime']}")
+		timeOutCounter = 0
 
-		try:
-			self.client.ping()
-		except BinanceRequestException: 
-			print('BinanceRequestException PING ERROR')
-		except BinanceAPIExceptioan:
-			print('BinanceAPIExceptioan PING ERROR')
+		# Some little tweaks parameters:
+		MAX_TIMEOUT_TO_EXIT = int(100)
+		RETRY_TIMEOUT       = int( 10)
 
-		print('ok ping')
+		# ############# #
+		# BOT MAIN LOOP #
+		# ############# #
+		currentTime = int(self.client.get_server_time()['serverTime'])
+		# last close price already saved
 
-		time.sleep(10)
-
-		return 0
-
-		# Pair price
-		"""
-		try:
-			getPrice = self.client.get_symbol_ticker(symbol=self.cfg.get('binance_pair'))
-
-		except BinanceAPIException as e:
-			logging.info(f'Binance API exception: {e.status_code} - {e.message}')
-			return 1
-
-		except BinanceRequestException as e:
-			logging.info(f'Binance request exception: {e.status_code} - {e.message}')
-			return 2
-
-		except BinanceWithdrawException as e:
-			logging.info(f'Binance withdraw exception: {e.status_code} - {e.message}')
-			return 3
-
-		logging.info(f'Symbol: [' + getPrice['symbol'] + '] Price: [' + getPrice['price'] + ']')
-
-		botIteracSleepMin = 47 # Nyquist frequency for 1min
-		msgNow            = ''
-
-		self.runningBot = True
-		self.calculatedSlowEMA = 0.0
-		self.calculatedFastEMA = 0.0
-
-		while self.runningBot:
+		while True:
 
 			try:
-				clast = self.client.get_klines(symbol=self.cfg.get('binance_pair'), interval=self.cfg.get('time_sample'))[-1:][0]
+				self.client.ping()
+			except: 
+				self.logAndNotif("PING ERROR!")
 
-			except BinanceAPIException as e:
-				logging.info(f'Binance API exception: {e.status_code} - {e.message}')
-				return 4
+				timeOutCounter = timeOutCounter + 1
 
-			except BinanceRequestException as e:
-				logging.info(f'Binance request exception: {e.status_code} - {e.message}')
-				return 5
+				if timeOutCounter >= MAX_TIMEOUT_TO_EXIT:
+					self.logAndNotif("BOT EXIT! MAX TIMEOUT REACHED!")
+					return 1 # MAX TIMEOUT REACHED
 
-			except BinanceWithdrawException as e:
-				logging.info(f'Binance withdraw exception: {e.status_code} - {e.message}')
-				return 6
+				time.sleep(RETRY_TIMEOUT) # wait a little to next ping
 
-			currentRunningCandleTimeId = int(clast[6])
-			currentRunningPrice = float(clast[4])
-
-			logging.info(f'Value: [{currentRunningPrice}] | Time Id: [{currentRunningCandleTimeId}] | Last closed candle time id: [{self.savedLastCandleTimeId}]')
-
-			if currentRunningCandleTimeId > self.savedLastCandleTimeId:
-				# (enter here at first bot iteration)
-				logging.info('CANDLE CLOSED (timeslice): Updating EMAs and Candle time ID:')
-
-				self.savedLastCandleTimeId = currentRunningCandleTimeId
-
-				self.calculatedSlowEMA = self.emaSlow.insertNewValueAndGetEMA(currentRunningPrice)
-				self.calculatedFastEMA = self.emaFast.insertNewValueAndGetEMA(currentRunningPrice)
-
-			else:
-				# Candle not closed, just a forecast
-				logging.info('Forecast EMA values:')
-				self.calculatedSlowEMA = self.emaSlow.calculateNewValue(currentRunningPrice)
-				self.calculatedFastEMA = self.emaFast.calculateNewValue(currentRunningPrice)
 				continue
 
-			logging.info(f'Slow EMA: [{self.calculatedSlowEMA}] | Fast EMA: [{self.calculatedFastEMA}]')
+			timeOutCounter = 0
 
-			if self.calculatedSlowEMA < self.calculatedFastEMA:
-				msgNow = 'S (' + str(self.calculatedSlowEMA) + ') < F (' + str(self.calculatedFastEMA) + ') [[BUY]] (Now: ' + str(currentRunningPrice) + ')'
-			elif self.calculatedSlowEMA > self.calculatedFastEMA:
-				msgNow = 'S (' + str(self.calculatedSlowEMA) + ') > F (' + str(self.calculatedFastEMA) + ') [[SELL]] (Now: ' + str(currentRunningPrice) + ')'
-			else:
-				msgNow = 'S (' + str(self.calculatedSlowEMA) + ') = F (' + str(self.calculatedFastEMA) + ') [[HOLD ON]] (Now: ' + str(currentRunningPrice) + ')'
+			time.sleep(0.5)
 
-			logging.info(msgNow)
-			self.twtt.write(msgNow)
+			lastCandle = self.client.get_klines(symbol=self.cfg.get('binance_pair'), interval=self.cfg.get('time_sample'), limit=1)
 
-			logging.info(f'Sleeping {botIteracSleepMin} secs...\n')
-			time.sleep(botIteracSleepMin)
+			lastCandleOpenTime  = int(lastCandle[0][0])
+			lastCandleCloseTime = int(lastCandle[0][6])
 
-			del clast
-			del getPrice
+			# Saving price of not closed candle
+			if lastCandleOpenTime <= currentTime <= lastCandleCloseTime:
+				self.lastPrice = float(lastCandle[0][4])
 
-			return 0
+			# Closed candle. Inserting (and calculating) the
+			# last close saved candle price and COMPARING EMAs.
+			if currentTime < lastCandleOpenTime < lastCandleCloseTime:
+				slow = self.emaSlow.calcNewValueIsertAndPop(self.lastPrice)
+				fast = self.emaFast.calcNewValueIsertAndPop(self.lastPrice)
 
-		"""
+				if slow < fast:
+					self.logAndNotif(f"BUY (slow {slow} < {fast} fast)")
+				elif slow > fast:
+					self.logAndNotif(f"SELL (slow {slow} > {fast} fast)")
+				else:
+					self.logAndNotif(f"HOLD (slow {slow} = {fast} fast)")
+
+			time.sleep(0.5)
+
+		return 0
 
 # ----------------------------------------------------------------------------------------
 
