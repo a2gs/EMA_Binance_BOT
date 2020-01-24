@@ -14,7 +14,6 @@ import signal
 import logging
 from logging.handlers import RotatingFileHandler
 
-#import ema
 import ema2
 import notify
 
@@ -84,11 +83,6 @@ class bot(Exception):
 		self.cfg       = botCfg()
 		self.twtt      = twttData()
 
-#def __init__(self, pid : int, botId : str, binance_apikey : str, binance_sekkey : str,
-#             work_path : str, pid_file_path : str, cmd_pipe_file_path : str, log_file : str,
-#             binance_pair : str, fast_ema : int, fast_ema_offset : int, slow_ema : int,
-#             slow_ema_offset: int, time_sample : int , notification : str):
-
 	# -----------------------------------------------
 	def loadCfg(self,
 	            pid : int,
@@ -104,7 +98,7 @@ class bot(Exception):
 	            slow_ema : int,
 	            slow_ema_offset: int,
 	            time_sample : int,
-	            notification : str):
+	            notification : str) -> int:
 
 		global auxPid_file_path
 		global auxCmd_pipe_file_path
@@ -156,6 +150,8 @@ class bot(Exception):
 		logging.info(f"\tEMA Slow/Fast Offset = [{self.cfg.get('slow_ema_offset')} / {self.cfg.get('fast_ema_offset')}]")
 		logging.info(f"\tTime sample = [{self.cfg.get('time_sample')}]")
 		logging.info(f"\tBinance API key = [{self.cfg.get('binance_apikey')}]\n")
+
+		return 0
 
 	# -----------------------------------------------
 	def walletStatus(self) -> int:
@@ -269,9 +265,6 @@ class bot(Exception):
 			logging.info("Exception loading EMA fast data!")
 			return 8
 
-#		self.emaSlow.printData()
-#		self.emaFast.printData()
-
 		del closedPrices
 		del lastPrices
 
@@ -367,21 +360,6 @@ def main(argv):
 	pid_file_path      = f'{argv[2]}_pid.text'
 	cmd_pipe_file_path = f'{argv[2]}_pipecmd'
 	log_file           = f'{argv[2]}_log.text'
-	"""
-	binance_apikey = os.getenv('BINANCE_APIKEY', 'NOTDEF_APIKEY')
-	binance_sekkey = os.getenv('BINANCE_SEKKEY', 'NOTDEF_APIKEY')
-
-	work_path          = argv[1]
-	binance_pair       = argv[3]
-	fast_ema           = int(argv[4])
-	fast_ema_offset    = int(argv[5])
-	slow_ema           = int(argv[6])
-	slow_ema_offset    = int(argv[7])
-	time_sample        = argv[8]
-	notif              = argv[9]
-	log_maxBytes       = int(argv[10])
-	log_nRotate        = int(argv[11])
-	"""
 
 	pid = daemonize(argv[1])
 
@@ -396,7 +374,6 @@ def main(argv):
 	signal.signal(signal.SIGTERM, sigHandler)
 	signal.signal(signal.SIGSEGV, sigHandler)
 
-	#logging.basicConfig(filename=log_file, filemode='a', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y%m%d%H%M%S')
 	logging.basicConfig(handlers = [ RotatingFileHandler(log_file, maxBytes = int(argv[10]), backupCount = int(argv[11])) ],
 	                    level    = logging.INFO,
 	                    format   = '%(asctime)s - %(levelname)s - %(message)s',
@@ -418,17 +395,7 @@ def main(argv):
 
 	try:
 		bot1 = bot()
-		"""
-		bot1 = bot(pid, argv[2],
-		           binance_apikey, binance_sekkey,
-		           work_path, pid_file_path, cmd_pipe_file_path,
-		           log_file,
-		           binance_pair,
-		           fast_ema, fast_ema_offset,
-		           slow_ema, slow_ema_offset,
-					  time_sample,
-		           notif)
-		"""
+
 		bot1.loadCfg(pid                = pid,
 		             botId              = argv[2],
 		             binance_apikey     = os.getenv('BINANCE_APIKEY', 'NOTDEF_APIKEY'),
