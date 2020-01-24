@@ -78,7 +78,7 @@ class bot(Exception):
 	def __init__(self, pid : int, botId : str, binance_apikey : str, binance_sekkey : str,
 	             work_path : str, pid_file_path : str, cmd_pipe_file_path : str, log_file : str,
 	             binance_pair : str, fast_ema : int, fast_ema_offset : int, slow_ema : int,
-	             slow_ema_offset: int, time_sample : int , notification):
+	             slow_ema_offset: int, time_sample : int , notification : str):
 
 		global auxPid_file_path
 		global auxCmd_pipe_file_path
@@ -358,6 +358,9 @@ def main(argv):
 	slow_ema           = int(argv[6])
 	slow_ema_offset    = int(argv[7])
 	time_sample        = argv[8]
+	notif              = argv[9]
+	log_maxBytes       = int(argv[10])
+	log_nRotate        = int(argv[11])
 
 	pid = daemonize(work_path)
 
@@ -372,7 +375,9 @@ def main(argv):
 	signal.signal(signal.SIGTERM, sigHandler)
 	signal.signal(signal.SIGSEGV, sigHandler)
 
-	logging.basicConfig(filename=log_file, filemode='a', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y%m%d%H%M%S')
+	#logging.basicConfig(filename=log_file, filemode='a', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y%m%d%H%M%S')
+	logging.basicConfig(handlers=[RotatingFileHandler(log_file, maxBytes=log_maxBytes, backupCount=log_nRotate)],
+	                    filemode='a', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y%m%d%H%M%S')
 
 #	except IOError:
 #		sys.stderr.write(f"Creating log file failed: {e.errno} - {e.strerror}\n")
@@ -397,7 +402,7 @@ def main(argv):
 		           fast_ema, fast_ema_offset,
 		           slow_ema, slow_ema_offset,
 					  time_sample,
-		           argv[9])
+		           notif)
 	except:
 		logging.info(f"BOT initialization error!")
 		logging.shutdown()
@@ -430,8 +435,8 @@ def main(argv):
 
 if __name__ == '__main__':
 
-	if len(sys.argv) != 10:
-		print(f"Usage:\n\t{sys.argv[0]} <WORK_PATH> <BOT_ID> <BINANCE_PAIR> <FAST_EMA> <OFFSET_FAST_EMA> <SLOW_EMA> <OFFSET_SLOW_EMA> <TIME_SAMPLE> <NOTIFY>\nSample:\n\t{sys.argv[0]} ./ BOT1 BNBBTC 9 0 21 +4 30m twitter\n\n")
+	if len(sys.argv) != 12:
+		print(f"Usage:\n\t{sys.argv[0]} <WORK_PATH> <BOT_ID> <BINANCE_PAIR> <FAST_EMA> <OFFSET_FAST_EMA> <SLOW_EMA> <OFFSET_SLOW_EMA> <TIME_SAMPLE> <NOTIFY> <MAX_BYE_LOG_SIZE> <LOG_N_ROTATION>\nSample:\n\t{sys.argv[0]} ./ BOT1 BNBBTC 9 0 21 +4 30m twitter 1000000 2\n\n")
 		print("You must define the environment variables with yours:\t\n"
 			+ "\t BINANCE_APIKEY = Binance API key\n"
 			+ "\t BINANCE_SEKKEY = Binance Security key\n\n")
