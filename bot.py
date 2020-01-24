@@ -98,7 +98,9 @@ class bot(Exception):
 	            slow_ema : int,
 	            slow_ema_offset: int,
 	            time_sample : int,
-	            notification : str) -> int:
+	            notification : str,
+	            max_timeout_to_exit : int,
+	            retry_timeout : int ) -> int:
 
 		global auxPid_file_path
 		global auxCmd_pipe_file_path
@@ -106,18 +108,20 @@ class bot(Exception):
 		auxPid_file_path      = pid_file_path
 		auxCmd_pipe_file_path = cmd_pipe_file_path
 
-		self.cfg.set('binance_apikey'    , binance_apikey)
-		self.cfg.set('binance_sekkey'    , binance_sekkey)
-		self.cfg.set('work_path'         , work_path)
-		self.cfg.set('pid'               , pid)
-		self.cfg.set('pid_file_path'     , pid_file_path)
-		self.cfg.set('bot_id'            , botId)
-		self.cfg.set('cmd_pipe_file_path', cmd_pipe_file_path)
-		self.cfg.set('binance_pair'      , binance_pair)
-		self.cfg.set('fast_ema'          , fast_ema)
-		self.cfg.set('fast_ema_offset'   , fast_ema_offset)
-		self.cfg.set('slow_ema'          , slow_ema)
-		self.cfg.set('slow_ema_offset'   , slow_ema_offset)
+		self.cfg.set('binance_apikey'     , binance_apikey)
+		self.cfg.set('binance_sekkey'     , binance_sekkey)
+		self.cfg.set('work_path'          , work_path)
+		self.cfg.set('pid'                , pid)
+		self.cfg.set('pid_file_path'      , pid_file_path)
+		self.cfg.set('bot_id'             , botId)
+		self.cfg.set('cmd_pipe_file_path' , cmd_pipe_file_path)
+		self.cfg.set('binance_pair'       , binance_pair)
+		self.cfg.set('fast_ema'           , fast_ema)
+		self.cfg.set('fast_ema_offset'    , fast_ema_offset)
+		self.cfg.set('slow_ema'           , slow_ema)
+		self.cfg.set('slow_ema_offset'    , slow_ema_offset)
+		self.cfg.set('max_timeout_to_exit', max_timeout_to_exit)
+		self.cfg.set('retry_timeout'      , retry_timeout)
 
 		self.emaSlow = ema2.ema(self.cfg.get('slow_ema'), self.cfg.get('slow_ema_offset'))
 		self.emaFast = ema2.ema(self.cfg.get('fast_ema'), self.cfg.get('fast_ema_offset'))
@@ -149,8 +153,9 @@ class bot(Exception):
 		logging.info(f"\tEMA Slow/Fast = [{self.cfg.get('slow_ema')} / {self.cfg.get('fast_ema')}]")
 		logging.info(f"\tEMA Slow/Fast Offset = [{self.cfg.get('slow_ema_offset')} / {self.cfg.get('fast_ema_offset')}]")
 		logging.info(f"\tTime sample = [{self.cfg.get('time_sample')}]")
-		logging.info(f"\tBinance API key = [{self.cfg.get('binance_apikey')}]\n")
-
+		logging.info(f"\tBinance API key = [{self.cfg.get('binance_apikey')}]")
+		logging.info(f"\tMaximum timeout attempts before exit = [{self.cfg.get('max_timeout_to_exit')}]")
+		logging.info(f"\tSeconds between timeouts = [{self.cfg.get('retry_timeout')}]\n")
 		return 0
 
 	# -----------------------------------------------
@@ -295,13 +300,10 @@ class bot(Exception):
 
 		timeOutCounter = 0
 
-		# Some little tweaks parameters:
-		MAX_TIMEOUT_TO_EXIT = int(100)
-		RETRY_TIMEOUT       = int( 10)
-
 		# ############# #
 		# BOT MAIN LOOP #
 		# ############# #
+
 		currentTime = int(self.client.get_server_time()['serverTime'])
 		# last close price already saved
 
@@ -310,15 +312,15 @@ class bot(Exception):
 			try:
 				self.client.ping()
 			except: 
-				self.logAndNotif("PING ERROR!")
-
 				timeOutCounter = timeOutCounter + 1
 
-				if timeOutCounter >= MAX_TIMEOUT_TO_EXIT:
-					self.logAndNotif("BOT EXIT! MAX TIMEOUT REACHED!")
+				if timeOutCounter >= self.cfg.get('max_timeout_to_exit'):
+					self.logAndNotif(f"BOT EXIT! MAX TIMEOUT REACHED ({self.cfg.get('max_timeout_to_exit')})!")
 					return 1 # MAX TIMEOUT REACHED
 
-				time.sleep(RETRY_TIMEOUT) # wait a little to next ping
+				self.logAndNotif(f"PING ERROR! Attempt {timeOutCounter} of {self.cfg.get('max_timeout_to_exit')}. Waiting {self.cfg.get('retry_timeout')} seconds...")
+
+				time.sleep(self.cfg.get('retry_timeout')) # wait a little to next ping
 
 				continue
 
@@ -409,7 +411,9 @@ def main(argv):
 		             slow_ema           = int(argv[6]),
 		             slow_ema_offset    = int(argv[7]),
 		             time_sample        = argv[8],
-		             notification       = argv[9])
+		             notification       = argv[9],
+		             max_timeout_to_exit = int(argv[12]),
+		             retry_timeout       = int(argv[13]) )
 
 	except:
 		logging.info(f"BOT initialization error!")
@@ -443,8 +447,8 @@ def main(argv):
 
 if __name__ == '__main__':
 
-	if len(sys.argv) != 12:
-		print(f"Usage:\n\t{sys.argv[0]} <WORK_PATH> <BOT_ID> <BINANCE_PAIR> <FAST_EMA> <OFFSET_FAST_EMA> <SLOW_EMA> <OFFSET_SLOW_EMA> <TIME_SAMPLE> <NOTIFY> <MAX_BYE_LOG_SIZE> <LOG_N_ROTATION>\nSample:\n\t{sys.argv[0]} ./ BOT1 BNBBTC 9 0 21 +4 30m twitter 1000000 2\n\n")
+	if len(sys.argv) != 14:
+		print(f"Usage:\n\t{sys.argv[0]} <WORK_PATH> <BOT_ID> <BINANCE_PAIR> <FAST_EMA> <OFFSET_FAST_EMA> <SLOW_EMA> <OFFSET_SLOW_EMA> <TIME_SAMPLE> <NOTIFY> <MAX_BYE_LOG_SIZE> <LOG_N_ROTATION> <RETRY_TIMEOUT> <MAX_TIMEOUT_TO_EXIT>\nSample:\n\t{sys.argv[0]} ./ BOT1 BNBBTC 9 0 21 +4 30m twitter 1000000 2 10 100\n\n")
 		print("You must define the environment variables with yours:\t\n"
 			+ "\t BINANCE_APIKEY = Binance API key\n"
 			+ "\t BINANCE_SEKKEY = Binance Security key\n\n")
