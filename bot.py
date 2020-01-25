@@ -345,7 +345,7 @@ class bot(Exception):
 #			currentTime = int(self.client.get_server_time()['serverTime'])
 #			logging.info(f"candle and server time: {savedLastOpenCandle}={lastCandleOpenTime} | {currentTime} | {savedLastClosedCandle}={lastCandleCloseTime}")
 
-			# Running upon last candle time or it is a new?
+			# Running upon last candle time or is it a new?
 			if savedLastOpenCandle != lastCandleOpenTime and savedLastClosedCandle != lastCandleCloseTime:
 
 				savedLastOpenCandle   = lastCandleOpenTime
@@ -402,7 +402,6 @@ def main(argv):
 #	except IOError:
 #		sys.stderr.write(f"Creating log file failed: {e.errno} - {e.strerror}\n")
 #		sys.exit(1)
-
 
 #	try:
 #		CMD_PIPE_FILE = open(CMD_PIPE_FILE_PATH, "r")
