@@ -68,20 +68,22 @@ class twttData:
 
 class bot(Exception):
 
-	lastPrice = 0
-	cfg       = 0
-	twtt      = 0
-	emaSlow   = 0
-	emaFast   = 0
+	lastPrice  = 0
+	lastStatus = 0
+	cfg        = 0
+	twtt       = 0
+	emaSlow    = 0
+	emaFast    = 0
 
 	# -----------------------------------------------
 	def __init__(self):
 
-		self.lastPrice = float(0.0)
-		self.emaSlow   = object()
-		self.emaFast   = object()
-		self.cfg       = botCfg()
-		self.twtt      = twttData()
+		self.lastPrice  = float(0.0)
+		self.lastStatus = 0
+		self.emaSlow    = object()
+		self.emaFast    = object()
+		self.cfg        = botCfg()
+		self.twtt       = twttData()
 
 	# -----------------------------------------------
 	def loadCfg(self,
@@ -298,14 +300,19 @@ class bot(Exception):
 		del infotwtF
 		del infotwtS
 
-		timeOutCounter = 0
-
 		# ############# #
 		# BOT MAIN LOOP #
 		# ############# #
 
-		currentTime = int(self.client.get_server_time()['serverTime'])
-		# last close price already saved
+		# Last status:
+		# 1 - BUY
+		# 2 - SELL
+		# 3 - HOLD
+		self.lastStatus = 0 # 'Forcing' (0 to 'x') a notification at startup
+
+		savedLastOpenCandle   = 0
+		savedLastClosedCandle = 0
+		timeOutCounter        = 0
 
 		while True:
 
@@ -333,22 +340,33 @@ class bot(Exception):
 			lastCandleOpenTime  = int(lastCandle[0][0])
 			lastCandleCloseTime = int(lastCandle[0][6])
 
-			# Saving price of not closed candle
-			if lastCandleOpenTime <= currentTime <= lastCandleCloseTime:
-				self.lastPrice = float(lastCandle[0][4])
+			self.lastPrice = float(lastCandle[0][4])
 
-			# Closed candle. Inserting (and calculating) the
-			# last close saved candle price and COMPARING EMAs.
-			if currentTime < lastCandleOpenTime < lastCandleCloseTime:
+#			currentTime = int(self.client.get_server_time()['serverTime'])
+#			logging.info(f"candle and server time: {savedLastOpenCandle}={lastCandleOpenTime} | {currentTime} | {savedLastClosedCandle}={lastCandleCloseTime}")
+
+			# Running upon last candle time or it is a new?
+			if savedLastOpenCandle != lastCandleOpenTime and savedLastClosedCandle != lastCandleCloseTime:
+
+				savedLastOpenCandle   = lastCandleOpenTime
+				savedLastClosedCandle = lastCandleCloseTime
+
 				slow = self.emaSlow.calcNewValueIsertAndPop(self.lastPrice)
 				fast = self.emaFast.calcNewValueIsertAndPop(self.lastPrice)
 
 				if slow < fast:
-					self.logAndNotif(f"BUY (slow {slow} < {fast} fast)")
+					if self.lastStatus != 1:
+						self.lastStatus = 1
+						self.logAndNotif(f"BUY (slow {slow} < {fast} fast)")
+
 				elif slow > fast:
-					self.logAndNotif(f"SELL (slow {slow} > {fast} fast)")
+					if self.lastStatus != 2:
+						self.lastStatus = 2
+						self.logAndNotif(f"SELL (slow {slow} > {fast} fast)")
+
 				else:
 					self.logAndNotif(f"HOLD (slow {slow} = {fast} fast)")
+					self.lastStatus = 3
 
 			time.sleep(0.5)
 
