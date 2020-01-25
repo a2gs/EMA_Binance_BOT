@@ -295,7 +295,7 @@ class bot(Exception):
 		infotwtS = self.emaSlow.info()
 		infotwtF = self.emaFast.info()
 
-		self.logAndNotif(f"Bot Up! EMASlow[{infotwtS['period']}:{infotwtS['offset']}:{infotwtS['current']}] EMAFast[{infotwtF['period']}:{infotwtF['offset']}:{infotwtF['current']}]")
+		self.logAndNotif(f"Bot Up! {self.cfg.get('binance_pair')} | {self.cfg.get('time_sample')} | EMAs: Slow[{infotwtS['period']}:{infotwtS['offset']}:{infotwtS['current']}] Fast[{infotwtF['period']}:{infotwtF['offset']}:{infotwtF['current']}]")
 
 		del infotwtF
 		del infotwtS
