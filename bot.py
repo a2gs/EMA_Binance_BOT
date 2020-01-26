@@ -5,27 +5,17 @@
 # andre.scota@gmail.com
 # MIT license
 
-import os
 import sys
-import atexit
-import time
 import errno
 import signal
-import logging
-from logging.handlers import RotatingFileHandler
+from os import mkfifo, getenv
+from time import sleep, strftime, gmtime
+from logging.handlers import logging, RotatingFileHandler
 
 import ema2
 import notify
-
-from cfg import botCfg
-from cfg import klineAPIIntervals
-
-from util import cleanUp
-from util import sigHandler
-from util import auxPid_file_path
-from util import auxCmd_pipe_file_path
-from util import removePidFile
-from util import daemonize
+from cfg import botCfg, klineAPIIntervals
+from util import cleanUp, sigHandler, auxPid_file_path, auxCmd_pipe_file_path, removePidFile, daemonize
 
 from binance.client import Client
 from binance.exceptions import BinanceAPIException, BinanceWithdrawException, BinanceRequestException
@@ -46,10 +36,10 @@ class twttData:
 		self.activated = False
 
 	def accessData(self, botIdP):
-		self.apiKey      = os.getenv('TWITTER_APIKEY', 'NOTDEF')
-		self.apiSekKey   = os.getenv('TWITTER_APISEKKEY', 'NOTDEF')
-		self.accssTkn    = os.getenv('TWITTER_ACCSSTKN', 'NOTDEF')
-		self.accssSekTkn = os.getenv('TWITTER_ACCSSSEKTKN', 'NOTDEF')
+		self.apiKey      = getenv('TWITTER_APIKEY', 'NOTDEF')
+		self.apiSekKey   = getenv('TWITTER_APISEKKEY', 'NOTDEF')
+		self.accssTkn    = getenv('TWITTER_ACCSSTKN', 'NOTDEF')
+		self.accssSekTkn = getenv('TWITTER_ACCSSSEKTKN', 'NOTDEF')
 		self.botId       = botIdP
 
 		if self.apiKey == 'NOTDEF' or self.apiSekKey == 'NOTDEF' or self.accssTkn == 'NOTDEF' or self.accssSekTkn == 'NOTDEF':
@@ -64,7 +54,7 @@ class twttData:
 
 	def write(self, message):
 		if self.activated == True:
-			self.ntf.write(time.strftime("%Y-%m-%d %H:%M:%S ", time.gmtime()) + self.botId + " " + message)
+			self.ntf.write(strftime("%Y-%m-%d %H:%M:%S ", gmtime()) + self.botId + " " + message)
 
 class bot(Exception):
 
@@ -137,14 +127,14 @@ class bot(Exception):
 		except KeyError as e:
 			logging.info(f'Error: time sample {argvInit[6]} not defined. Use one of: ')
 			logging.info(klineAPIIntervals.keys())
-			raise KeyError
+			raise
 
 		try:
-			os.mkfifo(cmd_pipe_file_path)
+			mkfifo(cmd_pipe_file_path)
 
 		except OSError as e: 
 			logging.info(f"Erro creating cmd pipe file: {e.errno} - {e.strerror}")
-			raise OSError
+			raise
 
 		logging.info(f"\n================================================================\nBOT {self.cfg.get('bot_id')} Configuration:")
 		logging.info(f"\tPID = [{self.cfg.get('pid')}]")
@@ -327,13 +317,13 @@ class bot(Exception):
 
 				self.logAndNotif(f"PING ERROR! Attempt {timeOutCounter} of {self.cfg.get('max_timeout_to_exit')}. Waiting {self.cfg.get('retry_timeout')} seconds...")
 
-				time.sleep(self.cfg.get('retry_timeout')) # wait a little to next ping
+				sleep(self.cfg.get('retry_timeout')) # wait a little to next ping
 
 				continue
 
 			timeOutCounter = 0
 
-			time.sleep(0.5)
+			sleep(0.5)
 
 			lastCandle = self.client.get_klines(symbol=self.cfg.get('binance_pair'), interval=self.cfg.get('time_sample'), limit=1)
 
@@ -368,7 +358,7 @@ class bot(Exception):
 					self.logAndNotif(f"HOLD (slow {slow} = {fast} fast)")
 					self.lastStatus = 3
 
-			time.sleep(0.5)
+			sleep(0.5)
 
 		return 0
 
@@ -387,10 +377,10 @@ def main(argv):
 	f.write(f"{pid}\n{cmd_pipe_file_path}\n{log_file}\n{argv[1]}\n{argv[3]}\n")
 	f.close()
 
-	signal.signal(signal.SIGILL, sigHandler)
+	signal.signal(signal.SIGILL , sigHandler)
 	signal.signal(signal.SIGTRAP, sigHandler)
-	signal.signal(signal.SIGINT, sigHandler)
-	signal.signal(signal.SIGHUP, sigHandler)
+	signal.signal(signal.SIGINT , sigHandler)
+	signal.signal(signal.SIGHUP , sigHandler)
 	signal.signal(signal.SIGTERM, sigHandler)
 	signal.signal(signal.SIGSEGV, sigHandler)
 
@@ -415,20 +405,20 @@ def main(argv):
 	try:
 		bot1 = bot()
 
-		bot1.loadCfg(pid                = pid,
-		             botId              = argv[2],
-		             binance_apikey     = os.getenv('BINANCE_APIKEY', 'NOTDEF_APIKEY'),
-		             binance_sekkey     = os.getenv('BINANCE_SEKKEY', 'NOTDEF_APIKEY'),
-		             work_path          = argv[1],
-		             pid_file_path      = pid_file_path,
-		             cmd_pipe_file_path = cmd_pipe_file_path,
-		             binance_pair       = argv[3],
-		             fast_ema           = int(argv[4]),
-		             fast_ema_offset    = int(argv[5]),
-		             slow_ema           = int(argv[6]),
-		             slow_ema_offset    = int(argv[7]),
-		             time_sample        = argv[8],
-		             notification       = argv[9],
+		bot1.loadCfg(pid                 = pid,
+		             botId               = argv[2],
+		             binance_apikey      = getenv('BINANCE_APIKEY', 'NOTDEF_APIKEY'),
+		             binance_sekkey      = getenv('BINANCE_SEKKEY', 'NOTDEF_APIKEY'),
+		             work_path           = argv[1],
+		             pid_file_path       = pid_file_path,
+		             cmd_pipe_file_path  = cmd_pipe_file_path,
+		             binance_pair        = argv[3],
+		             fast_ema            = int(argv[4]),
+		             fast_ema_offset     = int(argv[5]),
+		             slow_ema            = int(argv[6]),
+		             slow_ema_offset     = int(argv[7]),
+		             time_sample         = argv[8],
+		             notification        = argv[9],
 		             max_timeout_to_exit = int(argv[12]),
 		             retry_timeout       = int(argv[13]) )
 
