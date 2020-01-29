@@ -19,5 +19,21 @@ export TWITTER_ACCSSSEKTKN=''
 # ------------------------------------------------------------
 
 function kbot(){
-	kill -9 `head -n 1 $1_pid.text`
+
+	pidfile="$1"_pid.text
+
+	botpid=`head -n 1 $pidfile`
+	kill "$botpid"
+
+	sleep 1
+
+	if [ -f "$pidfile" ]; then
+
+		botpid=`head -n 1 $pidfile`
+
+		if [ ! -z "$botpid" ]; then
+			kill -9 "$botpid"
+		fi
+
+	fi
 }

@@ -15,7 +15,8 @@ from logging.handlers import logging, RotatingFileHandler
 import ema2
 import notify
 from cfg import botCfg, klineAPIIntervals
-from util import cleanUp, sigHandler, auxPid_file_path, auxCmd_pipe_file_path, removePidFile, daemonize
+#from util import sigHandler, auxPid_file_path, auxCmd_pipe_file_path, removePidFile, daemonize
+from util import sigHandler, setPidFileAndPipeFile, removePidFile, daemonize
 
 from binance.client import Client
 from binance.exceptions import BinanceAPIException, BinanceWithdrawException, BinanceRequestException
@@ -94,11 +95,12 @@ class bot(Exception):
 	            max_timeout_to_exit : int,
 	            retry_timeout : int ) -> int:
 
-		global auxPid_file_path
-		global auxCmd_pipe_file_path
+#		global auxPid_file_path
+#		global auxCmd_pipe_file_path
 
-		auxPid_file_path      = pid_file_path
-		auxCmd_pipe_file_path = cmd_pipe_file_path
+#		auxPid_file_path      = pid_file_path
+#		auxCmd_pipe_file_path = cmd_pipe_file_path
+		setPidFileAndPipeFile(pid_file_path, cmd_pipe_file_path)
 
 		self.cfg.set('binance_apikey'     , binance_apikey)
 		self.cfg.set('binance_sekkey'     , binance_sekkey)
@@ -132,7 +134,7 @@ class bot(Exception):
 		try:
 			mkfifo(cmd_pipe_file_path)
 
-		except OSError as e: 
+		except (OSError, FileExistsError) as e: 
 			logging.info(f"Erro creating cmd pipe file: {e.errno} - {e.strerror}")
 			raise
 
@@ -306,10 +308,12 @@ class bot(Exception):
 
 		while True:
 
-			logging.info("pinging...")
+#			logging.info("pinging...")
 			try:
 				self.client.ping()
 			except: 
+				logging.info("ping error")
+
 				timeOutCounter = timeOutCounter + 1
 
 				if timeOutCounter >= self.cfg.get('max_timeout_to_exit'):
@@ -442,15 +446,17 @@ def main(argv):
 			endBot(ret, f"BOT start return ERROR: [{ret}]")
 
 	except:
-		endBot(ret, f"BOT EXCEPTION! Exit..")
+		endBot(ret, f"BOT EXCEPTION {e.errno} - {e.strerror}! Exit.")
 
 #	CMD_PIPE_FILE.close()
 	endBot(ret, f"BOT return: [{ret}]")
 
 def endBot(code : int, msg : str):
+	global pid_file_path
+
 	logging.info(msg)
 	logging.shutdown()
-	cleanUp(pid_file_path, cmd_pipe_file_path)
+	removePidFile()
 	sys.exit(code)
 
 if __name__ == '__main__':
