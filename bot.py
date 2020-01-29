@@ -306,6 +306,7 @@ class bot(Exception):
 
 		while True:
 
+			logging.info("pinging...")
 			try:
 				self.client.ping()
 			except: 
@@ -318,6 +319,8 @@ class bot(Exception):
 				self.logAndNotif(f"PING ERROR! Attempt {timeOutCounter} of {self.cfg.get('max_timeout_to_exit')}. Waiting {self.cfg.get('retry_timeout')} seconds...")
 
 				sleep(self.cfg.get('retry_timeout')) # wait a little to next ping
+
+				logging.info("retry")
 
 				continue
 
@@ -365,7 +368,7 @@ class bot(Exception):
 # ----------------------------------------------------------------------------------------
 
 def main(argv):
-	ret = 0
+	ret = int(0)
 
 	pid_file_path      = f'{argv[2]}_pid.text'
 	cmd_pipe_file_path = f'{argv[2]}_pipecmd'
@@ -402,9 +405,9 @@ def main(argv):
 
 #	ret = runBot(logFile, BINANCE_PAIR, binance_apiKey, binance_sekKey)
 
-	try:
-		bot1 = bot()
+	bot1 = bot()
 
+	try:
 		bot1.loadCfg(pid                 = pid,
 		             botId               = argv[2],
 		             binance_apikey      = getenv('BINANCE_APIKEY', 'NOTDEF_APIKEY'),
@@ -423,34 +426,32 @@ def main(argv):
 		             retry_timeout       = int(argv[13]) )
 
 	except:
-		logging.info(f"BOT initialization error!")
-		logging.shutdown()
-		cleanUp(pid_file_path, cmd_pipe_file_path)
-		sys.exit(1)
+		endBot(1, "BOT initialization error!")
 
-	else:
-
+	try:
 		ret = bot1.walletStatus()
 		if ret != 0:
-			logging.info(f"BOT wallet status return ERROR: [{ret}]")
-			sys.exit(ret)
+			endBot(ret, f"BOT wallet status return ERROR: [{ret}]")
 
 		ret = bot1.loadData()
 		if ret != 0:
-			logging.info(f"BOT load data return ERROR: [{ret}]")
-			sys.exit(ret)
+			endBot(ret, f"BOT load data return ERROR: [{ret}]")
 
 		ret = bot1.start()
 		if ret != 0:
-			logging.info(f"BOT start return ERROR: [{ret}]")
-			sys.exit(ret)
+			endBot(ret, f"BOT start return ERROR: [{ret}]")
+
+	except:
+		endBot(ret, f"BOT EXCEPTION! Exit..")
 
 #	CMD_PIPE_FILE.close()
-	finally:
-		logging.info(f"BOT return: [{ret}]")
-		logging.shutdown()
-		cleanUp(pid_file_path, cmd_pipe_file_path)
-		sys.exit(ret)
+	endBot(ret, f"BOT return: [{ret}]")
+
+def endBot(code : int, msg : str):
+	logging.info(msg)
+	logging.shutdown()
+	cleanUp(pid_file_path, cmd_pipe_file_path)
+	sys.exit(code)
 
 if __name__ == '__main__':
 
