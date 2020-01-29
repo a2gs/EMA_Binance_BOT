@@ -19,5 +19,5 @@ export TWITTER_ACCSSSEKTKN=''
 # ------------------------------------------------------------
 
 function kbot(){
-	kill `head -n 1 $1_pid.text`
+	kill -9 `head -n 1 $1_pid.text`
 }
