@@ -314,6 +314,8 @@ class bot(Exception):
 		savedLastClosedCandle = 0
 		timeOutCounter        = 0
 
+		refresh_time = 13
+
 		while True:
 
 			logging.info("pinging...")
@@ -338,7 +340,7 @@ class bot(Exception):
 
 			timeOutCounter = 0
 
-			sleep(0.5)
+			sleep(refresh_time)
 
 			try:
 				lastCandle = self.client.get_klines(symbol=self.cfg.get('binance_pair'), interval=self.cfg.get('time_sample'), limit=1)
@@ -391,7 +393,7 @@ class bot(Exception):
 
 				self.logAndNotif(f"Last closed price: {self.lastPrice}")
 
-			sleep(0.5)
+			sleep(refresh_time)
 
 		return 0
 
