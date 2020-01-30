@@ -378,16 +378,18 @@ class bot(Exception):
 				if slow < fast:
 					if self.lastStatus != 1:
 						self.lastStatus = 1
-						self.logAndNotif(f"BUY (slow {slow} < {fast} fast)")
+						self.logAndNotif(f"BUY - Price: {self.lastPrice}: (slow {slow} < {fast} fast)")
 
 				elif slow > fast:
 					if self.lastStatus != 2:
 						self.lastStatus = 2
-						self.logAndNotif(f"SELL (slow {slow} > {fast} fast)")
+						self.logAndNotif(f"SELL - Price: {self.lastPrice}: (slow {slow} > {fast} fast)")
 
 				else:
-					self.logAndNotif(f"HOLD (slow {slow} = {fast} fast)")
+					self.logAndNotif(f"HOLD - Price: {self.lastPrice}: (slow {slow} = {fast} fast)")
 					self.lastStatus = 3
+
+				self.logAndNotif(f"Last closed price: {self.lastPrice}")
 
 			sleep(0.5)
 
