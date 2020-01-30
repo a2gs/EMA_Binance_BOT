@@ -163,7 +163,7 @@ class bot(Exception):
 			self.client = Client(self.cfg.get('binance_apikey'), self.cfg.get('binance_sekkey'), {"verify": True, "timeout": 20})
 
 		except BinanceAPIException as e:
-			logging.info(f'Binance API exception: {e.status_code} - {e.message}')
+			logging.info(f'Binance API exception: Status code: [{e.status_code}] | Response: [{e.response}] | Code: [{e.code}] | Msg: [{e.message}] | Request: [{e.request}]')
 			return 1
 
 		except BinanceRequestException as e:
@@ -173,11 +173,15 @@ class bot(Exception):
 		except BinanceWithdrawException as e:
 			logging.info(f'Binance withdraw exception: {e.status_code} - {e.message}')
 			return 3
+
+		except:
+			logging.info("Binance unknow exception")
+			return 4
 	
 		# Exchange status
 		if self.client.get_system_status()['status'] != 0:
 			print('Binance out of service')
-			return 4
+			return 5
 
 		# 1 Pair wallet
 		pair1 = self.client.get_asset_balance(pair[:3])
@@ -231,7 +235,7 @@ class bot(Exception):
 			'''
 
 		except BinanceAPIException as e:
-			logging.info(f'Binance API exception: {e.status_code} - {e.message}')
+			logging.info(f'Binance API exception: Status code: [{e.status_code}] | Response: [{e.response}] | Code: [{e.code}] | Msg: [{e.message}] | Request: [{e.request}]')
 			return 1
 
 		except BinanceRequestException as e:
@@ -241,6 +245,10 @@ class bot(Exception):
 		except BinanceWithdrawException as e:
 			logging.info(f'Binance withdraw exception: {e.status_code} - {e.message}')
 			return 3
+
+		except:
+			logging.info("Binance unknow exception!")
+			return 4
 
 		# the last candle is running, so it will be descarded
 		lastPrices = []
@@ -308,7 +316,7 @@ class bot(Exception):
 
 		while True:
 
-#			logging.info("pinging...")
+			logging.info("pinging...")
 			try:
 				self.client.ping()
 			except: 
@@ -332,7 +340,23 @@ class bot(Exception):
 
 			sleep(0.5)
 
-			lastCandle = self.client.get_klines(symbol=self.cfg.get('binance_pair'), interval=self.cfg.get('time_sample'), limit=1)
+			try:
+				lastCandle = self.client.get_klines(symbol=self.cfg.get('binance_pair'), interval=self.cfg.get('time_sample'), limit=1)
+
+			except BinanceAPIException as e:
+				logging.info(f"Binance API exception: Status code: [{e.status_code}] | Response: [{e.response}] | Code: [{e.code}] | Msg: [{e.message}] | Request: [{e.request}]. Waiting {self.cfg.get('retry_timeout')}")
+				sleep(self.cfg.get('retry_timeout'))
+				continue
+
+			except (BinanceRequestException, BinanceWithdrawException) as e:
+				self.logAndNotif(f"Binance API exception: {e.status_code} - {e.message}. Waiting {self.cfg.get('retry_timeout')} seconds...")
+				sleep(self.cfg.get('retry_timeout'))
+				continue
+
+			except:
+				logging.info("Binance unknow exception")
+				sleep(self.cfg.get('retry_timeout'))
+				continue
 
 			lastCandleOpenTime  = int(lastCandle[0][0])
 			lastCandleCloseTime = int(lastCandle[0][6])
@@ -430,7 +454,7 @@ def main(argv):
 		             retry_timeout       = int(argv[13]) )
 
 	except:
-		endBot(1, "BOT initialization error!")
+		endBot(1, "BOT Exeption: initialization error!")
 
 	try:
 		ret = bot1.walletStatus()
@@ -446,7 +470,7 @@ def main(argv):
 			endBot(ret, f"BOT start return ERROR: [{ret}]")
 
 	except:
-		endBot(ret, f"BOT EXCEPTION {e.errno} - {e.strerror}! Exit.")
+		endBot(ret, f"BOT EXCEPTION! Exit.")
 
 #	CMD_PIPE_FILE.close()
 	endBot(ret, f"BOT return: [{ret}]")
