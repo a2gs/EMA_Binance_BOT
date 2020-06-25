@@ -5,79 +5,93 @@
 # andre.scota@gmail.com
 # MIT license
 
-class EMAOffsetQueue:
-	offsetx   = int(0)
-	topo      = int(0)
-	elements  = list()
-	element   = float(0.0)
+class ema:
 
-	def __init__(self, offsetX, initValue):
-		self.offsetx = offsetX
-		self.topo = 0
+	emaRange = object()
+	period   = int(0)
+	k        = float(0.0)
+	offset   = int(0)
 
-		self.element = 0.0
-		self.elements = []
+	def __init__(self, emaValue : int, emaOffset : int):
+		self.emaRange = list() # Queue
+		self.period = emaValue
+		self.k = 2 / (emaValue + 1)
+		self.setOffset(emaOffset)
 
-		self.insertN(initValue)
+	def load(self, sample : list) -> bool:
+		if len(sample) <= self.period:
+			return False
 
-	def value(self):
-		return(self.offsetx)
+		try:
+			self.backinsert(sum(sample[0:self.period]) / float(self.period))
+		except:
+			raise
 
-	def insertN(self, n):
-		if self.offsetx == 0:
-			self.element = n
-		else:
-			self.elements.append(n)
-   
-			if self.topo == self.offsetx:
-				self.elements.pop(0)
-			else:
-				self.topo = self.topo + 1
+		for i in sample[self.period:]:
+			self.calcNewValueIsertAndPop(i)
 
-	def getN(self):
-		if self.offsetx == 0:
-			return(self.element)
-   
-		return(self.elements[0])
-   
-	def getAll(self):
-		if self.offsetx == 0:
-			return(self.element)
-   
-		return(self.elements)
+		return True
 
-# https://dicionariodoinvestidor.com.br/content/o-que-e-media-movel-exponencial-mme/
-# https://www.tororadar.com.br/investimento/analise-tecnica/medias-moveis
-class ema(EMAOffsetQueue):
-	emaValue     = int(0)
-	initEmaValue = float(0.0)
-	k            = float(0.0)
-	offset       = object()
+	def setOffset(self, emaOffset : int):
+		# 0 returns the highest emaRange value. Offset starts counting from the end of python list (-1, right)
+		self.offset = -emaOffset if emaOffset else -1
 
-	def __init__(self, emaValueP, ema_initPopulation, offsetValue):
+	def info(self) -> {}:
+		return {'period' : self.period, 'offset' : self.offset, 'current' : self.emaRange[self.offset]}
 
-# TODO: throw a exception:
-#		if emaValue < len(ema_initPopulation):
-#			return False
+	def getRange(self) -> []:
+		return self.emaRange
 
-		self.k = 2 / (emaValueP + 1)
-		self.emaValue = emaValueP
+	def printData(self):
+		print(f'Period: {self.period}\t\tOffset: {self.offset} (-1 = highest)\t\tCurrent value: {self.emaRange[self.offset]}')
+		print(f'Set: {self.emaRange}')
+		print(f'Set lenght: {len(self.emaRange)}')
 
-		# First 'emaValue's are simple moving avarage
-		self.initEmaValue = sum(ema_initPopulation[-emaValueP:]) / emaValueP
+	def get(self, offset = 0) -> float:
+		try:
+			return self.emaRange[ self.offset - (offset if offset else 0) ]
+		except:
+			raise
 
-		self.offset = EMAOffsetQueue(offsetValue, self.initEmaValue)
+	def backinsert(self, value : float):
+		self.emaRange.append(value)
 
-		# Other values are EMA calculations
-		[self.offset.insertN(self.calculateNewValue(x)) for x in ema_initPopulation[-emaValueP:]]
+	def frontpop(self) -> float:
+		return self.emaRange.pop(0)
 
-	def getEMAParams(self):
-		return([self.emaValue, self.offset.getN(), self.k, self.offset.value()])
+	def insertAndPop(self, value : float):
+		self.backinsert(value)
+		return self.frontpop()
 
-	def insertNewValueAndGetEMA(self, new):
-		self.offset.insertN(self.calculateNewValue(new))
-		return(self.offset.getN())
+	def calcEMA(self, value : float) -> float:
+		return ((value - self.emaRange[-1]) * self.k) + self.emaRange[-1]
 
-	def calculateNewValue(self, new):
-		curr = self.offset.getN()
-		return(((new - curr) * self.k) + curr)
+	def calcNewValueIsertAndPop(self, newValue : float) -> float:
+		newEMA = self.calcEMA(newValue)
+		self.backinsert(newEMA)
+
+		if len(self.emaRange) > self.period: # pop a element only queue is full (self.period elements)
+			self.frontpop()
+
+		return newEMA
+
+if __name__ == '__main__':
+
+	emaSample = ema(21, 4)
+
+	emaSample.load([1, 2, 3, 4, 5, 6, 7456, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24])
+	emaSample.printData()
+
+	print('-----------')
+	emaSample.calcNewValueIsertAndPop(100)
+	emaSample.printData()
+	print('-----------')
+
+	print(emaSample.get())
+	print(emaSample.get(5))
+
+	print('-----------')
+
+	emaSample.setOffset(0)
+	print(emaSample.get())
+	print(emaSample.get(2))
