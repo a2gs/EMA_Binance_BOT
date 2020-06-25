@@ -10,30 +10,30 @@ import tweepy
 #from time import strftime, gmtime
 
 class ntfTwitter:
-	ConsAPIKey = str()
+	ConsAPIKey    = str()
 	ConsAPIKeySek = str()
-	AccssTkn = str()
-	AccssTknSek = str()
-	twttcli = object()
-	twttAuth = object()
-	lastStatus = object()
-	usrTwtt = object()
+	AccssTkn      = str()
+	AccssTknSek   = str()
+	twttcli       = object()
+	twttAuth      = object()
+	lastStatus    = object()
+	usrTwtt       = object()
 
 	def __init__(self):
-		self.ConsAPIKey = str()
+		self.ConsAPIKey    = str()
 		self.ConsAPIKeySek = str()
-		self.AccssTkn = str()
-		self.AccssTknSek = str()
-		self.twttcli = object()
-		self.twttAuth = object()
-		self.lastStatus = object()
-		self.usrTwtt = object()
+		self.AccssTkn      = str()
+		self.AccssTknSek   = str()
+		self.twttcli       = object()
+		self.twttAuth      = object()
+		self.lastStatus    = object()
+		self.usrTwtt       = object()
 
-	def auth(self, consapikey, consapikeysek, accsstkn, accsstknsek):
-		self.ConsAPIKey = consapikey
+	def auth(self, consapikey : str, consapikeysek : str, accsstkn : str, accsstknsek : str) -> bool:
+		self.ConsAPIKey    = consapikey
 		self.ConsAPIKeySek = consapikeysek
-		self.AccssTkn = accsstkn
-		self.AccssTknSek = accsstknsek
+		self.AccssTkn      = accsstkn
+		self.AccssTknSek   = accsstknsek
 
 		self.twttAuth = tweepy.OAuthHandler(self.ConsAPIKey, self.ConsAPIKeySek)
 		self.twttAuth.set_access_token(self.AccssTkn, self.AccssTknSek)
@@ -73,7 +73,7 @@ class notify: # Facade class to 'notify schema': twitter, telegram, log, etcetc.
 #	write = 0
 	twtt = object()
 
-	def __init__(self, typeNtf):
+	def __init__(self, typeNtf: str = 'twitter'):
 		if typeNtf.lower() == 'twitter':
 			self.twtt = ntfTwitter
 

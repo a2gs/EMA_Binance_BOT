@@ -12,10 +12,9 @@ from os import mkfifo, getenv
 from time import sleep, strftime, gmtime
 from logging.handlers import logging, RotatingFileHandler
 
-import ema2
+import ema
 import notify
 from cfg import botCfg, klineAPIIntervals
-#from util import sigHandler, auxPid_file_path, auxCmd_pipe_file_path, removePidFile, daemonize
 from util import sigHandler, setPidFileAndPipeFile, removePidFile, daemonize
 
 from binance.client import Client
@@ -117,8 +116,8 @@ class bot(Exception):
 		self.cfg.set('max_timeout_to_exit', max_timeout_to_exit)
 		self.cfg.set('retry_timeout'      , retry_timeout)
 
-		self.emaSlow = ema2.ema(self.cfg.get('slow_ema'), self.cfg.get('slow_ema_offset'))
-		self.emaFast = ema2.ema(self.cfg.get('fast_ema'), self.cfg.get('fast_ema_offset'))
+		self.emaSlow = ema.ema(self.cfg.get('slow_ema'), self.cfg.get('slow_ema_offset'))
+		self.emaFast = ema.ema(self.cfg.get('fast_ema'), self.cfg.get('fast_ema_offset'))
 
 		if notification.lower() == 'twitter':
 			self.twtt.accessData(self.cfg.get('bot_id'))
@@ -146,7 +145,7 @@ class bot(Exception):
 		logging.info(f"\tBinance pair = [{self.cfg.get('binance_pair')}]")
 		logging.info(f"\tEMA Slow/Fast = [{self.cfg.get('slow_ema')} / {self.cfg.get('fast_ema')}]")
 		logging.info(f"\tEMA Slow/Fast Offset = [{self.cfg.get('slow_ema_offset')} / {self.cfg.get('fast_ema_offset')}]")
-		logging.info(f"\tTime sample = [{self.cfg.get('time_sample')}]")
+		logging.info(f"\tTime sample = [{self.cfg.get('time_sample')[0]}]")
 		logging.info(f"\tBinance API key = [{self.cfg.get('binance_apikey')}]")
 		logging.info(f"\tMaximum timeout attempts before exit = [{self.cfg.get('max_timeout_to_exit')}]")
 		logging.info(f"\tSeconds between timeouts = [{self.cfg.get('retry_timeout')}]\n")
@@ -216,7 +215,7 @@ class bot(Exception):
 		logging.info("--- Loading data ---")
 
 		try:
-			closedPrices = self.client.get_klines(symbol=self.cfg.get('binance_pair'), interval=self.cfg.get('time_sample'))
+			closedPrices = self.client.get_klines(symbol=self.cfg.get('binance_pair'), interval=self.cfg.get('time_sample')[0])
 			'''
 			[
 				1499040000000,      # [ 0]Open time
@@ -295,8 +294,10 @@ class bot(Exception):
 		infotwtS = self.emaSlow.info()
 		infotwtF = self.emaFast.info()
 
-		self.logAndNotif(f"Bot Up! {self.cfg.get('binance_pair')} | {self.cfg.get('time_sample')} | EMAs: Slow[{infotwtS['period']}:{infotwtS['offset']}:{infotwtS['current']}] Fast[{infotwtF['period']}:{infotwtF['offset']}:{infotwtF['current']}]")
+		logging.info("0>>>>>>>>>>>>>>>>>>>>>>>> {}")
+		self.logAndNotif(f"Bot Up! {self.cfg.get('binance_pair')} | {self.cfg.get('time_sample')[0]} | EMAs: Slow[{infotwtS['period']}:{infotwtS['offset']}:{infotwtS['current']}] Fast[{infotwtF['period']}:{infotwtF['offset']}:{infotwtF['current']}]")
 
+		logging.info("1>>>>>>>>>>>>>>>>>>>>>>>> {}")
 		del infotwtF
 		del infotwtS
 
@@ -314,11 +315,14 @@ class bot(Exception):
 		savedLastClosedCandle = 0
 		timeOutCounter        = 0
 
-		refresh_time = 13
+		logging.info("2>>>>>>>>>>>>>>>>>>>>>>>> ")
+		refresh_time = self.cfg.get('time_sample')[1] / 10
+
+		logging.info(f"3>>>>>>>>>>>>>>>>>>>>>>>> {refresh_time}")
 
 		while True:
 
-			logging.info("pinging...")
+#			logging.info("pinging...")
 			try:
 				self.client.ping()
 			except: 
@@ -343,7 +347,7 @@ class bot(Exception):
 			sleep(refresh_time)
 
 			try:
-				lastCandle = self.client.get_klines(symbol=self.cfg.get('binance_pair'), interval=self.cfg.get('time_sample'), limit=1)
+				lastCandle = self.client.get_klines(symbol=self.cfg.get('binance_pair'), interval=self.cfg.get('time_sample')[0], limit=1)
 
 			except BinanceAPIException as e:
 				logging.info(f"Binance API exception: Status code: [{e.status_code}] | Response: [{e.response}] | Code: [{e.code}] | Msg: [{e.message}] | Request: [{e.request}]. Waiting {self.cfg.get('retry_timeout')}")
@@ -380,18 +384,18 @@ class bot(Exception):
 				if slow < fast:
 					if self.lastStatus != 1:
 						self.lastStatus = 1
-						self.logAndNotif(f"BUY - Price: {self.lastPrice}: (slow {slow} < {fast} fast)")
+						self.logAndNotif(f"BUY - Price: {self.lastPrice} (slow {slow} < {fast} fast)")
 
 				elif slow > fast:
 					if self.lastStatus != 2:
 						self.lastStatus = 2
-						self.logAndNotif(f"SELL - Price: {self.lastPrice}: (slow {slow} > {fast} fast)")
+						self.logAndNotif(f"SELL - Price: {self.lastPrice} (slow {slow} > {fast} fast)")
 
 				else:
-					self.logAndNotif(f"HOLD - Price: {self.lastPrice}: (slow {slow} = {fast} fast)")
+					self.logAndNotif(f"HOLD - Price: {self.lastPrice} (slow {slow} = {fast} fast)")
 					self.lastStatus = 3
 
-				self.logAndNotif(f"Last closed price: {self.lastPrice}")
+				self.logAndNotif(f"Last closed price: {self.lastPrice} (slow [{slow}] | fast [{fast}])")
 
 			sleep(refresh_time)
 
