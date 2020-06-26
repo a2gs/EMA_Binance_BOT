@@ -5,7 +5,9 @@
 # andre.scota@gmail.com
 # MIT license
 
-class ema:
+import sys
+
+class ema():
 
 	emaRange = object()
 	period   = int(0)
@@ -27,8 +29,10 @@ class ema:
 		except:
 			raise
 
-		for i in sample[self.period:]:
-			self.calcNewValueIsertAndPop(i)
+#		for i in sample[self.period:]:
+#			self.calcNewValueIsertAndPop(i)
+
+		[self.calcNewValueIsertAndPop(i) for i in sample[self.pediod:]]
 
 		return True
 
@@ -36,8 +40,11 @@ class ema:
 		# 0 returns the highest emaRange value. Offset starts counting from the end of python list (-1, right)
 		self.offset = -emaOffset if emaOffset else -1
 
+	def getOffset(self) -> int:
+		return self.offset if self.offset != -1 else 0
+
 	def info(self) -> {}:
-		return {'period' : self.period, 'offset' : self.offset, 'current' : self.emaRange[self.offset]}
+		return {'period' : self.period, 'offset' : self.getOffset(), 'current' : self.emaRange[self.offset]}
 
 	def getRange(self) -> []:
 		return self.emaRange
@@ -47,7 +54,7 @@ class ema:
 		print(f'Set: {self.emaRange}')
 		print(f'Set lenght: {len(self.emaRange)}')
 
-	def get(self, offset = 0) -> float:
+	def get(self, offset : int = 0) -> float:
 		try:
 			return self.emaRange[ self.offset - (offset if offset else 0) ]
 		except:

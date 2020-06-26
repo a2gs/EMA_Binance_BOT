@@ -77,22 +77,22 @@ class bot(Exception):
 
 	# -----------------------------------------------
 	def loadCfg(self,
-	            pid : int,
-	            botId : str,
-	            binance_apikey : str,
-	            binance_sekkey : str,
-	            work_path : str,
-	            pid_file_path : str,
-	            cmd_pipe_file_path : str,
-	            binance_pair : str,
-	            fast_ema : int,
-	            fast_ema_offset : int,
-	            slow_ema : int,
-	            slow_ema_offset: int,
-	            time_sample : int,
-	            notification : str,
+	            pid                 : int,
+	            botId               : str,
+	            binance_apikey      : str,
+	            binance_sekkey      : str,
+	            work_path           : str,
+	            pid_file_path       : str,
+	            cmd_pipe_file_path  : str,
+	            binance_pair        : str,
+	            fast_ema            : int,
+	            fast_ema_offset     : int,
+	            slow_ema            : int,
+	            slow_ema_offset     : int,
+	            time_sample         : int,
+	            notification        : str,
 	            max_timeout_to_exit : int,
-	            retry_timeout : int ) -> int:
+	            retry_timeout       : int ) -> int:
 
 #		global auxPid_file_path
 #		global auxCmd_pipe_file_path
@@ -265,7 +265,7 @@ class bot(Exception):
 
 		try:
 			if self.emaFast.load(lastPrices) == False:
-				logging.info(f"Error loading data for Slow EMA calculation ({self.cfg.get('slow_ema')}).")
+				logging.info(f"Error loading data for Fast EMA calculation ({self.cfg.get('fast_ema')}).")
 				return 7
 		except:
 			logging.info("Exception loading EMA fast data!")
@@ -294,10 +294,8 @@ class bot(Exception):
 		infotwtS = self.emaSlow.info()
 		infotwtF = self.emaFast.info()
 
-		logging.info("0>>>>>>>>>>>>>>>>>>>>>>>> {}")
 		self.logAndNotif(f"Bot Up! {self.cfg.get('binance_pair')} | {self.cfg.get('time_sample')[0]} | EMAs: Slow[{infotwtS['period']}:{infotwtS['offset']}:{infotwtS['current']}] Fast[{infotwtF['period']}:{infotwtF['offset']}:{infotwtF['current']}]")
 
-		logging.info("1>>>>>>>>>>>>>>>>>>>>>>>> {}")
 		del infotwtF
 		del infotwtS
 
@@ -315,10 +313,7 @@ class bot(Exception):
 		savedLastClosedCandle = 0
 		timeOutCounter        = 0
 
-		logging.info("2>>>>>>>>>>>>>>>>>>>>>>>> ")
 		refresh_time = self.cfg.get('time_sample')[1] / 10
-
-		logging.info(f"3>>>>>>>>>>>>>>>>>>>>>>>> {refresh_time}")
 
 		while True:
 
@@ -378,8 +373,11 @@ class bot(Exception):
 				savedLastOpenCandle   = lastCandleOpenTime
 				savedLastClosedCandle = lastCandleCloseTime
 
-				slow = self.emaSlow.calcNewValueIsertAndPop(self.lastPrice)
-				fast = self.emaFast.calcNewValueIsertAndPop(self.lastPrice)
+				self.emaSlow.calcNewValueIsertAndPop(self.lastPrice)
+				self.emaFast.calcNewValueIsertAndPop(self.lastPrice)
+
+				slow = self.emaSlow.get(self.emaSlow.getOffset())
+				fast = self.emaFast.get(self.emaFast.getOffset())
 
 				if slow < fast:
 					if self.lastStatus != 1:
@@ -494,7 +492,7 @@ def endBot(code : int, msg : str):
 if __name__ == '__main__':
 
 	if len(sys.argv) != 14:
-		print(f"Usage:\n\t{sys.argv[0]} <WORK_PATH> <BOT_ID> <BINANCE_PAIR> <FAST_EMA> <OFFSET_FAST_EMA> <SLOW_EMA> <OFFSET_SLOW_EMA> <TIME_SAMPLE> <NOTIFY> <MAX_BYE_LOG_SIZE> <LOG_N_ROTATION> <RETRY_TIMEOUT> <MAX_TIMEOUT_TO_EXIT>\nSample:\n\t{sys.argv[0]} ./ BOT1 BNBBTC 9 0 21 +4 30m twitter 1000000 2 10 100\n\n")
+		print(f"Usage:\n\t{sys.argv[0]} <WORK_PATH> <BOT_ID> <BINANCE_PAIR> <FAST_EMA> <OFFSET_FAST_EMA> <SLOW_EMA> <OFFSET_SLOW_EMA> <TIME_SAMPLE> <NOTIFY> <MAX_BYE_LOG_SIZE> <LOG_N_ROTATION> <RETRY_TIMEOUT> <MAX_TIMEOUT_TO_EXIT>\nSample:\n\t{sys.argv[0]} ./ BOT1 BTCUSDT 9 0 21 +4 30m twitter 1000000 2 10 100\n\n")
 		print("You must define the environment variables with yours:\t\n"
 			+ "\t BINANCE_APIKEY = Binance API key\n"
 			+ "\t BINANCE_SEKKEY = Binance Security key\n\n")
