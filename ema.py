@@ -32,7 +32,7 @@ class ema():
 #		for i in sample[self.period:]:
 #			self.calcNewValueIsertAndPop(i)
 
-		[self.calcNewValueIsertAndPop(i) for i in sample[self.pediod:]]
+		[self.calcNewValueIsertAndPop(i) for i in sample[self.period:]]
 
 		return True
 
