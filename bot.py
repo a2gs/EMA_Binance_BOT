@@ -376,8 +376,8 @@ class bot(Exception):
 				self.emaSlow.calcNewValueIsertAndPop(self.lastPrice)
 				self.emaFast.calcNewValueIsertAndPop(self.lastPrice)
 
-				slow = self.emaSlow.get(self.emaSlow.getOffset())
-				fast = self.emaFast.get(self.emaFast.getOffset())
+				slow = self.emaSlow.getWithOffset()
+				fast = self.emaFast.getWithOffset()
 
 				if slow < fast:
 					if self.lastStatus != 1:

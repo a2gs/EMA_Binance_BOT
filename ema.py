@@ -16,8 +16,8 @@ class ema():
 
 	def __init__(self, emaValue : int, emaOffset : int):
 		self.emaRange = list() # Queue
-		self.period = emaValue
-		self.k = 2 / (emaValue + 1)
+		self.period   = emaValue
+		self.k        = 2 / (emaValue + 1)
 		self.setOffset(emaOffset)
 
 	def load(self, sample : list) -> bool:
@@ -29,19 +29,20 @@ class ema():
 		except:
 			raise
 
-#		for i in sample[self.period:]:
-#			self.calcNewValueIsertAndPop(i)
-
 		[self.calcNewValueIsertAndPop(i) for i in sample[self.period:]]
 
 		return True
 
+	def calcOffset(self, os) -> int: # Return the API (real) offset. Not user EMA requested offset (__init__).
+		return -os - 1
+
 	def setOffset(self, emaOffset : int):
 		# 0 returns the highest emaRange value. Offset starts counting from the end of python list (-1, right)
-		self.offset = -emaOffset if emaOffset else -1
+		#self.offset = -emaOffset if emaOffset else -1
+		self.offset = self.calcOffset(emaOffset)
 
 	def getOffset(self) -> int:
-		return self.offset if self.offset != -1 else 0
+		return self.calcOffset(self.offset)
 
 	def info(self) -> {}:
 		return {'period' : self.period, 'offset' : self.getOffset(), 'current' : self.emaRange[self.offset]}
@@ -50,13 +51,19 @@ class ema():
 		return self.emaRange
 
 	def printData(self):
-		print(f'Period: {self.period}\t\tOffset: {self.offset} (-1 = highest)\t\tCurrent value: {self.emaRange[self.offset]}')
+		print(f'Period: {self.period}\t\tOffset: {self.getOffset()}/{self.offset} (-1 = highest)\t\tCurrent value: {self.getWithOffset()}')
 		print(f'Set: {self.emaRange}')
 		print(f'Set lenght: {len(self.emaRange)}')
 
 	def get(self, offset : int = 0) -> float:
 		try:
-			return self.emaRange[ self.offset - (offset if offset else 0) ]
+			return self.emaRange[self.calcOffset(offset)]
+		except:
+			raise
+
+	def getWithOffset(self) -> float:
+		try:
+			return self.emaRange[self.offset]
 		except:
 			raise
 
@@ -84,21 +91,27 @@ class ema():
 
 if __name__ == '__main__':
 
-	emaSample = ema(21, 4)
+	emaSample = ema(9, 4)
 
-	emaSample.load([1, 2, 3, 4, 5, 6, 7456, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24])
+	emaSample.load([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24])
 	emaSample.printData()
 
 	print('-----------')
+
+	print("Inserting value 100")
 	emaSample.calcNewValueIsertAndPop(100)
 	emaSample.printData()
-	print('-----------')
-
-	print(emaSample.get())
-	print(emaSample.get(5))
 
 	print('-----------')
 
-	emaSample.setOffset(0)
-	print(emaSample.get())
-	print(emaSample.get(2))
+	print(f"Get(): {emaSample.get()} (offset: 0)")
+	print(f"Get(2): {emaSample.get(2)}")
+	print(f"GetWithOffset(): {emaSample.getWithOffset()}")
+
+	print('-----------')
+
+	emaSample.setOffset(6)
+	print("Changing offset to 6")
+	print(f"Get(): {emaSample.get()} (offset: 0)")
+	print(f"Get(4): {emaSample.get(4)}")
+	print(f"GetWithOffset(): {emaSample.getWithOffset()}")
