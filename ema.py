@@ -38,7 +38,6 @@ class ema():
 
 	def setOffset(self, emaOffset : int):
 		# 0 returns the highest emaRange value. Offset starts counting from the end of python list (-1, right)
-		#self.offset = -emaOffset if emaOffset else -1
 		self.offset = self.calcOffset(emaOffset)
 
 	def getOffset(self) -> int:
@@ -52,8 +51,7 @@ class ema():
 
 	def printData(self):
 		print(f'Period: {self.period}\t\tOffset: {self.getOffset()}/{self.offset} (-1 = highest)\t\tCurrent value: {self.getWithOffset()}')
-		print(f'Set: {self.emaRange}')
-		print(f'Set lenght: {len(self.emaRange)}')
+		[print(f"Value {i[1]}: {i[0]}") for i in zip(self.emaRange, range(self.period-1, -1, -1))]
 
 	def get(self, offset : int = 0) -> float:
 		try:
