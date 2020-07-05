@@ -5,14 +5,13 @@
 # andre.scota@gmail.com
 # MIT license
 
-import sys
-import errno
-import signal
+from sys import argv, exit
+from signal import signal, SIGILL, SIGTRAP, SIGINT, SIGHUP, SIGTERM, SIGSEGV
 from os import mkfifo, getenv
 from time import sleep, strftime, gmtime
 from logging.handlers import logging, RotatingFileHandler
 
-import ema
+from ema import ema
 import notify
 from cfg import botCfg, klineAPIIntervals
 from util import sigHandler, setPidFileAndPipeFile, removePidFile, daemonize, completeMilliTime
@@ -118,8 +117,8 @@ class bot(Exception):
 		self.cfg.set('max_timeout_to_exit', max_timeout_to_exit)
 		self.cfg.set('retry_timeout'      , retry_timeout)
 
-		self.emaSlow = ema.ema(self.cfg.get('slow_ema'), self.cfg.get('slow_ema_offset'))
-		self.emaFast = ema.ema(self.cfg.get('fast_ema'), self.cfg.get('fast_ema_offset'))
+		self.emaSlow = ema(self.cfg.get('slow_ema'), self.cfg.get('slow_ema_offset'))
+		self.emaFast = ema(self.cfg.get('fast_ema'), self.cfg.get('fast_ema_offset'))
 
 		if notification.lower() == 'twitter':
 			self.twtt.accessData(self.cfg.get('bot_id'))
@@ -318,11 +317,13 @@ class bot(Exception):
 		# 0 - 'Forcing' (0 to 'x') a notification at startup
 		# 1 - BUY
 		# 2 - SELL
-		# 3 - HOLD POSITION
 		lastStatus = 0
 
-		currentTime = int(0)
-		lastPrice   = float(0.0)
+		last2Candles = object()
+		currentTime  = int(0)
+		lastPrice    = float(0.0)
+		slowEMA      = float(0.0)
+		fastEMA      = float(0.0)
 
 		while True: # main loop
 
@@ -406,7 +407,6 @@ class bot(Exception):
 
 			else:
 				self.logAndNotif(f"HOLD - Price: {lastPrice} (slow {slowEMA} = {fastEMA} fast)")
-				lastStatus = 3
 
 		return 0
 
@@ -425,12 +425,12 @@ def main(argv):
 	f.write(f"{pid}\n{cmd_pipe_file_path}\n{log_file}\n{argv[1]}\n{argv[3]}\n")
 	f.close()
 
-	signal.signal(signal.SIGILL , sigHandler)
-	signal.signal(signal.SIGTRAP, sigHandler)
-	signal.signal(signal.SIGINT , sigHandler)
-	signal.signal(signal.SIGHUP , sigHandler)
-	signal.signal(signal.SIGTERM, sigHandler)
-	signal.signal(signal.SIGSEGV, sigHandler)
+	signal(SIGILL , sigHandler)
+	signal(SIGTRAP, sigHandler)
+	signal(SIGINT , sigHandler)
+	signal(SIGHUP , sigHandler)
+	signal(SIGTERM, sigHandler)
+	signal(SIGSEGV, sigHandler)
 
 	logging.basicConfig(handlers = [ RotatingFileHandler(log_file, maxBytes = int(argv[10]), backupCount = int(argv[11])) ],
 	                    level    = logging.INFO,
@@ -504,12 +504,12 @@ def endBot(code : int, msg : str):
 	logging.info(msg)
 	logging.shutdown()
 	removePidFile()
-	sys.exit(code)
+	exit(code)
 
 if __name__ == '__main__':
 
-	if len(sys.argv) != 14:
-		print(f"Usage:\n\t{sys.argv[0]} <WORK_PATH> <BOT_ID> <BINANCE_PAIR> <FAST_EMA> <OFFSET_FAST_EMA> <SLOW_EMA> <OFFSET_SLOW_EMA> <TIME_SAMPLE> <NOTIFY> <MAX_BYE_LOG_SIZE> <LOG_N_ROTATION> <RETRY_TIMEOUT> <MAX_TIMEOUT_TO_EXIT>\nSample:\n\t{sys.argv[0]} ./ BOT1 BTCUSDT 9 0 21 +4 30m twitter 1000000 2 10 100\n\n")
+	if len(argv) != 14:
+		print(f"Usage:\n\t{argv[0]} <WORK_PATH> <BOT_ID> <BINANCE_PAIR> <FAST_EMA> <OFFSET_FAST_EMA> <SLOW_EMA> <OFFSET_SLOW_EMA> <TIME_SAMPLE> <NOTIFY> <MAX_BYE_LOG_SIZE> <LOG_N_ROTATION> <RETRY_TIMEOUT> <MAX_TIMEOUT_TO_EXIT>\nSample:\n\t{argv[0]} ./ BOT1 BTCUSDT 9 0 21 +4 30m twitter 1000000 2 10 100\n\n")
 		print("You must define the environment variables with yours:\t\n"
 			+ "\t BINANCE_APIKEY = Binance API key\n"
 			+ "\t BINANCE_SEKKEY = Binance Security key\n\n")
@@ -536,7 +536,7 @@ if __name__ == '__main__':
 			+ "\t\tTWITTER_APISEKKEY   = Consumer API keys: API security key\n"
 			+ "\t\tTWITTER_ACCSSTKN    = Access token and access token secret: Access token\n"
 			+ "\t\tTWITTER_ACCSSSEKTKN = Access token and access token secret: Access security token\n")
-		sys.exit(1)
+		exit(1)
 
 	else:
-		main(sys.argv)
+		main(argv)
