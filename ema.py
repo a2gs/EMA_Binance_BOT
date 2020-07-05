@@ -29,7 +29,7 @@ class ema():
 		except:
 			raise
 
-		[self.calcNewValueIsertAndPop(i) for i in sample[self.period:]]
+		[self.calcNewValueInsertAndPop(i) for i in sample[self.period:]]
 
 		return True
 
@@ -78,7 +78,7 @@ class ema():
 	def calcEMA(self, value : float) -> float:
 		return ((value - self.emaRange[-1]) * self.k) + self.emaRange[-1]
 
-	def calcNewValueIsertAndPop(self, newValue : float) -> float:
+	def calcNewValueInsertAndPop(self, newValue : float) -> float:
 		newEMA = self.calcEMA(newValue)
 		self.backinsert(newEMA)
 
@@ -97,7 +97,7 @@ if __name__ == '__main__':
 	print('-----------')
 
 	print("Inserting value 100")
-	emaSample.calcNewValueIsertAndPop(100)
+	emaSample.calcNewValueInsertAndPop(100)
 	emaSample.printData()
 
 	print('-----------')

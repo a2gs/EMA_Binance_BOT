@@ -15,7 +15,7 @@ from logging.handlers import logging, RotatingFileHandler
 import ema
 import notify
 from cfg import botCfg, klineAPIIntervals
-from util import sigHandler, setPidFileAndPipeFile, removePidFile, daemonize
+from util import sigHandler, setPidFileAndPipeFile, removePidFile, daemonize, completeMilliTime
 
 from binance.client import Client
 from binance.exceptions import BinanceAPIException, BinanceWithdrawException, BinanceRequestException
@@ -58,22 +58,24 @@ class twttData:
 
 class bot(Exception):
 
-	lastPrice  = 0
-	lastStatus = 0
-	cfg        = 0
-	twtt       = 0
-	emaSlow    = 0
-	emaFast    = 0
+	cfg             = 0
+	twtt            = 0
+	emaSlow         = 0
+	emaFast         = 0
+	lastOpenTime    = 0
+	lastCloseTime   = 0
+	client          = 0
 
 	# -----------------------------------------------
 	def __init__(self):
 
-		self.lastPrice  = float(0.0)
-		self.lastStatus = 0
-		self.emaSlow    = object()
-		self.emaFast    = object()
-		self.cfg        = botCfg()
-		self.twtt       = twttData()
+		self.emaSlow         = object()
+		self.emaFast         = object()
+		self.client          = object()
+		self.cfg             = botCfg()
+		self.twtt            = twttData()
+		self.lastOpenTime    = 0
+		self.lastCloseTime   = 0
 
 	# -----------------------------------------------
 	def loadCfg(self,
@@ -152,11 +154,7 @@ class bot(Exception):
 		return 0
 
 	# -----------------------------------------------
-	def walletStatus(self) -> int:
-
-		pair = self.cfg.get('binance_pair')
-
-		logging.info("--- Wallet status ---")
+	def connectBinance(self) -> int:
 
 		try:
 			self.client = Client(self.cfg.get('binance_apikey'), self.cfg.get('binance_sekkey'), {"verify": True, "timeout": 20})
@@ -179,8 +177,16 @@ class bot(Exception):
 	
 		# Exchange status
 		if self.client.get_system_status()['status'] != 0:
-			print('Binance out of service')
+			logging.info('Binance out of service')
 			return 5
+
+		return 0
+
+	def walletStatus(self) -> int:
+
+		pair = self.cfg.get('binance_pair')
+
+		logging.info("--- Wallet status ---")
 
 		# 1 Pair wallet
 		pair1 = self.client.get_asset_balance(pair[:3])
@@ -191,6 +197,7 @@ class bot(Exception):
 		logging.info(f'Symbol 2 on wallet: [' + pair[3:] + ']\tFree: [' + pair2['free'] + ']\tLocked: [' + pair2['locked'] + ']')
 
 		# Open orders
+		'''
 		openOrders = self.client.get_open_orders(symbol=pair)
 		for openOrder in openOrders:
 			logging.info(f'Order id [' + str(openOrder['orderId']) + '] data:\n' 
@@ -202,10 +209,12 @@ class bot(Exception):
 				+ '\tStop price..: [' + openOrder['stopPrice']      + ']\n'
 				+ '\tIs working..: [' + str(openOrder['isWorking']) + ']')
 
+		del openOrders
+		'''
+
 		del pair
 		del pair1
 		del pair2
-		del openOrders
 
 		return 0
 
@@ -215,7 +224,7 @@ class bot(Exception):
 		logging.info("--- Loading data ---")
 
 		try:
-			closedPrices = self.client.get_klines(symbol=self.cfg.get('binance_pair'), interval=self.cfg.get('time_sample')[0])
+			closedPrices = self.client.get_klines(symbol = self.cfg.get('binance_pair'), interval = self.cfg.get('time_sample')[0])
 			'''
 			[
 				1499040000000,      # [ 0]Open time
@@ -249,32 +258,49 @@ class bot(Exception):
 			logging.info("Binance unknow exception!")
 			return 4
 
-		# the last candle is running, so it will be descarded
-		lastPrices = []
-		[lastPrices.append(float(x[4])) for x in closedPrices[:-1]]
+		self.lastOpenTime  = closedPrices[-1][0]
+		self.lastCloseTime = closedPrices[-1][6]
+		logging.info(f"Last candle (running) open time.: [{self.lastOpenTime}]")
+		logging.info(f"Last candle (running) close time: [{self.lastCloseTime}]")
 
-		self.lastPrice = float(closedPrices[-1][4]) # Saving last candle lcose price
+		# the last candle is running, so it will be descarded (it is not closed!)
+		lastPrices = []
+		try:
+			[lastPrices.append(float(x[4])) for x in closedPrices[:-1]]
+		except:
+			logging.info(f"Exception loading EMAs data!")
+			return 9
 
 		try:
 			if self.emaSlow.load(lastPrices) == False:
 				logging.info(f"Error loading data for Slow EMA calculation ({self.cfg.get('slow_ema')}).")
-				return 4
+				return 10
 		except:
-			logging.info("Exception loading EMA slow data!")
-			return 6
+			logging.info(f"Exception loading EMA slow data!")
+			return 11
 
 		try:
 			if self.emaFast.load(lastPrices) == False:
 				logging.info(f"Error loading data for Fast EMA calculation ({self.cfg.get('fast_ema')}).")
-				return 7
+				return 12
 		except:
-			logging.info("Exception loading EMA fast data!")
-			return 8
+			logging.info(f"Exception loading EMA fast data!")
+			return 13
+
+		infotwtS = {}
+		infotwtF = {}
+
+		infotwtS = self.emaSlow.info()
+		infotwtF = self.emaFast.info()
+
+		self.logAndNotif(f"Bot Up! {self.cfg.get('binance_pair')} | {self.cfg.get('time_sample')[0]} | EMAs: Slow[{infotwtS['period']}:{infotwtS['offset']}:{infotwtS['current']}] Fast[{infotwtF['period']}:{infotwtF['offset']}:{infotwtF['current']}]")
+
+		logging.info("Ok!")
 
 		del closedPrices
 		del lastPrices
-
-		logging.info("Ok!")
+		del infotwtF
+		del infotwtS
 
 		return 0
 
@@ -288,114 +314,99 @@ class bot(Exception):
 
 		logging.info("--- Starting ---")
 
-		infotwtS = {}
-		infotwtF = {}
-
-		infotwtS = self.emaSlow.info()
-		infotwtF = self.emaFast.info()
-
-		self.logAndNotif(f"Bot Up! {self.cfg.get('binance_pair')} | {self.cfg.get('time_sample')[0]} | EMAs: Slow[{infotwtS['period']}:{infotwtS['offset']}:{infotwtS['current']}] Fast[{infotwtF['period']}:{infotwtF['offset']}:{infotwtF['current']}]")
-
-		del infotwtF
-		del infotwtS
-
-		# ############# #
-		# BOT MAIN LOOP #
-		# ############# #
-
 		# Last status:
+		# 0 - 'Forcing' (0 to 'x') a notification at startup
 		# 1 - BUY
 		# 2 - SELL
-		# 3 - HOLD
-		self.lastStatus = 0 # 'Forcing' (0 to 'x') a notification at startup
+		# 3 - HOLD POSITION
+		lastStatus = 0
 
-		savedLastOpenCandle   = 0
-		savedLastClosedCandle = 0
-		timeOutCounter        = 0
+		currentTime = int(0)
+		lastPrice   = float(0.0)
 
-		refresh_time = self.cfg.get('time_sample')[1] / 10
+		while True: # main loop
 
-		while True:
+			while True:
 
-#			logging.info("pinging...")
+				try:
+					currentTime = self.client.get_server_time()['serverTime']
+
+				except BinanceAPIException as e:
+					logging.info(f'Binance API get_server_time exception: {e.status_code} - {e.message}')
+					return 1
+
+				except BinanceRequestException as e:
+					logging.info(f'Binance request get_server_time exception: {e.status_code} - {e.message}')
+					return 2
+
+				except BinanceWithdrawException as e:
+					logging.info('Binance withdraw get_server_time exception.')
+					return 3
+
+				except:
+					logging.info(f'Binance get_server_time exception: {e.status_code} - {e.message}')
+					return 4
+
+				logging.info(f"Binance time....................: [{currentTime}]")
+				logging.info(f"Last candle (running) open time.: [{self.lastOpenTime}]")
+				logging.info(f"Last candle (running) close time: [{self.lastCloseTime}]")
+
+				if self.lastOpenTime < currentTime < self.lastCloseTime:
+					logging.info("sleeping 2 sec .... TODO a better sleep time")
+					sleep(2)
+				else:
+					logging.info("CLOSED CANDLE!")
+					break
+
 			try:
-				self.client.ping()
-			except: 
-				logging.info("ping error")
-
-				timeOutCounter = timeOutCounter + 1
-
-				if timeOutCounter >= self.cfg.get('max_timeout_to_exit'):
-					self.logAndNotif(f"BOT EXIT! MAX TIMEOUT REACHED ({self.cfg.get('max_timeout_to_exit')})!")
-					return 1 # MAX TIMEOUT REACHED
-
-				self.logAndNotif(f"PING ERROR! Attempt {timeOutCounter} of {self.cfg.get('max_timeout_to_exit')}. Waiting {self.cfg.get('retry_timeout')} seconds...")
-
-				sleep(self.cfg.get('retry_timeout')) # wait a little to next ping
-
-				logging.info("retry")
-
-				continue
-
-			timeOutCounter = 0
-
-			sleep(refresh_time)
-
-			try:
-				lastCandle = self.client.get_klines(symbol=self.cfg.get('binance_pair'), interval=self.cfg.get('time_sample')[0], limit=1)
+				last2Candles = self.client.get_klines(symbol   = self.cfg.get('binance_pair'),
+				                                      interval = self.cfg.get('time_sample')[0],
+				                                      limit    = 2)
 
 			except BinanceAPIException as e:
-				logging.info(f"Binance API exception: Status code: [{e.status_code}] | Response: [{e.response}] | Code: [{e.code}] | Msg: [{e.message}] | Request: [{e.request}]. Waiting {self.cfg.get('retry_timeout')}")
-				sleep(self.cfg.get('retry_timeout'))
-				continue
+				logging.info(f'Binance API get_klines exception: {e.status_code} - {e.message}')
+				return 5
 
-			except (BinanceRequestException, BinanceWithdrawException) as e:
-				self.logAndNotif(f"Binance API exception: {e.status_code} - {e.message}. Waiting {self.cfg.get('retry_timeout')} seconds...")
-				sleep(self.cfg.get('retry_timeout'))
-				continue
+			except BinanceRequestException as e:
+				logging.info(f'Binance request get_klines exception: {e.status_code} - {e.message}')
+				return 6
+
+			except BinanceWithdrawException as e:
+				logging.info(f'Binance withdraw get_klines exception: {e.status_code} - {e.message}')
+				return 7
 
 			except:
-				logging.info("Binance unknow exception")
-				sleep(self.cfg.get('retry_timeout'))
-				continue
+				logging.info('Binance get_klines exception.')
+				return 8
 
-			lastCandleOpenTime  = int(lastCandle[0][0])
-			lastCandleCloseTime = int(lastCandle[0][6])
+			self.lastOpenTime  = last2Candles[1][0]
+			self.lastCloseTime = last2Candles[1][6]
 
-			self.lastPrice = float(lastCandle[0][4])
+			lastPrice = float(last2Candles[0][4])
 
-#			currentTime = int(self.client.get_server_time()['serverTime'])
-#			logging.info(f"candle and server time: {savedLastOpenCandle}={lastCandleOpenTime} | {currentTime} | {savedLastClosedCandle}={lastCandleCloseTime}")
+			self.emaSlow.calcNewValueInsertAndPop(lastPrice)
+			self.emaFast.calcNewValueInsertAndPop(lastPrice)
 
-			# Running upon last candle time or is it a new?
-			if savedLastOpenCandle != lastCandleOpenTime and savedLastClosedCandle != lastCandleCloseTime:
+			try:
+				slowEMA = self.emaSlow.getWithOffset()
+				fastEMA = self.emaFast.getWithOffset()
+			except:
+				logging.info('EMA get value exception!')
+				return 9
 
-				savedLastOpenCandle   = lastCandleOpenTime
-				savedLastClosedCandle = lastCandleCloseTime
+			if slowEMA < fastEMA:
+				if lastStatus != 1:
+					lastStatus = 1
+					self.logAndNotif(f"BUY - Price: {lastPrice} (slow {slowEMA} < {fastEMA} fast)")
 
-				self.emaSlow.calcNewValueIsertAndPop(self.lastPrice)
-				self.emaFast.calcNewValueIsertAndPop(self.lastPrice)
+			elif slowEMA > fastEMA:
+				if lastStatus != 2:
+					lastStatus = 2
+					self.logAndNotif(f"SELL - Price: {lastPrice} (slow {slowEMA} > {fastEMA} fast)")
 
-				slow = self.emaSlow.getWithOffset()
-				fast = self.emaFast.getWithOffset()
-
-				if slow < fast:
-					if self.lastStatus != 1:
-						self.lastStatus = 1
-						self.logAndNotif(f"BUY - Price: {self.lastPrice} (slow {slow} < {fast} fast)")
-
-				elif slow > fast:
-					if self.lastStatus != 2:
-						self.lastStatus = 2
-						self.logAndNotif(f"SELL - Price: {self.lastPrice} (slow {slow} > {fast} fast)")
-
-				else:
-					self.logAndNotif(f"HOLD - Price: {self.lastPrice} (slow {slow} = {fast} fast)")
-					self.lastStatus = 3
-
-				self.logAndNotif(f"Last closed price: {self.lastPrice} (slow [{slow}] | fast [{fast}])")
-
-			sleep(refresh_time)
+			else:
+				self.logAndNotif(f"HOLD - Price: {lastPrice} (slow {slowEMA} = {fastEMA} fast)")
+				lastStatus = 3
 
 		return 0
 
@@ -426,18 +437,20 @@ def main(argv):
 	                    format   = '%(asctime)s - %(levelname)s - %(message)s',
 	                    datefmt  = '%Y%m%d%H%M%S')
 
-#	except IOError:
-#		sys.stderr.write(f"Creating log file failed: {e.errno} - {e.strerror}\n")
-#		sys.exit(1)
+	'''
+ 	except IOError:
+ 		sys.stderr.write(f"Creating log file failed: {e.errno} - {e.strerror}\n")
+ 		sys.exit(1)
 
-#	try:
-#		CMD_PIPE_FILE = open(CMD_PIPE_FILE_PATH, "r")
+ 	try:
+ 		CMD_PIPE_FILE = open(CMD_PIPE_FILE_PATH, "r")
 
-#	except IOError:
-#		sys.stderr.write(f"Opeing cmd pipe file failed: {e.errno} - {e.strerror}\n")
-# 		sys.exit(1)
+ 	except IOError:
+ 		sys.stderr.write(f"Opeing cmd pipe file failed: {e.errno} - {e.strerror}\n")
+  		sys.exit(1)
 
-#	ret = runBot(logFile, BINANCE_PAIR, binance_apiKey, binance_sekKey)
+ 	ret = runBot(logFile, BINANCE_PAIR, binance_apiKey, binance_sekKey)
+	'''
 
 	bot1 = bot()
 
@@ -463,6 +476,10 @@ def main(argv):
 		endBot(1, "BOT Exeption: initialization error!")
 
 	try:
+		ret = bot1.connectBinance()
+		if ret != 0:
+			endBot(ret, f"BOT connect Biance status return ERROR: [{ret}]")
+
 		ret = bot1.walletStatus()
 		if ret != 0:
 			endBot(ret, f"BOT wallet status return ERROR: [{ret}]")
