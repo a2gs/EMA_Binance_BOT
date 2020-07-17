@@ -170,8 +170,8 @@ class bot(Exception):
 			logging.info(f'Binance withdraw exception: {e.status_code} - {e.message}')
 			return 3
 
-		except:
-			logging.info("Binance unknow exception")
+		except Exception as e:
+			logging.info(f"Binance unknow exception: {e}")
 			return 4
 	
 		# Exchange status
@@ -253,8 +253,8 @@ class bot(Exception):
 			logging.info(f'Binance withdraw exception: {e.status_code} - {e.message}')
 			return 3
 
-		except:
-			logging.info("Binance unknow exception!")
+		except Exception as e:
+			logging.info(f"Binance unknow exception: {e}")
 			return 4
 
 		self.lastOpenTime  = closedPrices[-1][0]
@@ -266,24 +266,24 @@ class bot(Exception):
 		lastPrices = []
 		try:
 			[lastPrices.append(float(x[4])) for x in closedPrices[:-1]]
-		except:
-			logging.info(f"Exception loading EMAs data!")
+		except Exception as e:
+			logging.info(f"Exception loading EMAs data: {e}")
 			return 9
 
 		try:
 			if self.emaSlow.load(lastPrices) == False:
 				logging.info(f"Error loading data for Slow EMA calculation ({self.cfg.get('slow_ema')}).")
 				return 10
-		except:
-			logging.info(f"Exception loading EMA slow data!")
+		except Exception as e:
+			logging.info(f"Exception loading EMA slow data: {e}")
 			return 11
 
 		try:
 			if self.emaFast.load(lastPrices) == False:
 				logging.info(f"Error loading data for Fast EMA calculation ({self.cfg.get('fast_ema')}).")
 				return 12
-		except:
-			logging.info(f"Exception loading EMA fast data!")
+		except Exception as e:
+			logging.info(f"Exception loading EMA fast data: {e}")
 			return 13
 
 		infotwtS = {}
@@ -344,8 +344,8 @@ class bot(Exception):
 					logging.info('Binance withdraw get_server_time exception.')
 					return 3
 
-				except:
-					logging.info(f'Binance get_server_time exception: {e.status_code} - {e.message}')
+				except Exception as e:
+					logging.info(f'Binance get_server_time exception: {e}')
 					return 4
 
 				logging.info(f"Binance time....................: [{currentTime}]")
@@ -376,8 +376,8 @@ class bot(Exception):
 				logging.info(f'Binance withdraw get_klines exception: {e.status_code} - {e.message}')
 				return 7
 
-			except:
-				logging.info('Binance get_klines exception.')
+			except Exception as e:
+				logging.info(f'Binance get_klines exception: {e}')
 				return 8
 
 			self.lastOpenTime  = last2Candles[1][0]
@@ -391,8 +391,8 @@ class bot(Exception):
 			try:
 				slowEMA = self.emaSlow.getWithOffset()
 				fastEMA = self.emaFast.getWithOffset()
-			except:
-				logging.info('EMA get value exception!')
+			except Exception as e:
+				logging.info(f'EMA get value exception: {e}')
 				return 9
 
 			if slowEMA < fastEMA:
@@ -472,8 +472,8 @@ def main(argv):
 		             max_timeout_to_exit = int(argv[12]),
 		             retry_timeout       = int(argv[13]) )
 
-	except:
-		endBot(1, "BOT Exeption: initialization error!")
+	except Expcepton as e:
+		endBot(1, f"BOT Exeption: initialization error: {e}")
 
 	try:
 		ret = bot1.connectBinance()
@@ -492,8 +492,8 @@ def main(argv):
 		if ret != 0:
 			endBot(ret, f"BOT start return ERROR: [{ret}]")
 
-	except:
-		endBot(ret, f"BOT EXCEPTION! Exit.")
+	except Exception as e:
+		endBot(ret, f"BOT EXCEPTION! Exit: {e}")
 
 #	CMD_PIPE_FILE.close()
 	endBot(ret, f"BOT return: [{ret}]")
